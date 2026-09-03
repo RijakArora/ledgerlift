@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Ledgerlift{% endblock %}</title>
+<style>
+  :root {
+    --ink: #16181d;
+    --ink-soft: #545a66;
+    --paper: #f5f6f4;
+    --card: #ffffff;
+    --line: #e5e6e1;
+    --accent: #1f5f4b;
+    --accent-soft: #e8f2ee;
+    --alert-bg: #fdecea; --alert-ink: #a02f2a;
+    --warn-bg: #fdf3e0;  --warn-ink: #8a5a10;
+    --ok-bg: #e7f5ec;    --ok-ink: #1f6e42;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(20,20,15,.04), 0 4px 14px rgba(20,20,15,.05);
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--paper); color: var(--ink); margin: 0; line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    background: var(--ink); color: #fff; padding: 14px 20px;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+  }
+  header .brand { display:flex; align-items:center; gap:9px; color:#fff; text-decoration:none; font-weight:700; font-size:17px; }
+  header .brand .mark { width:10px; height:10px; border-radius:3px; background:#6fd6ac; display:inline-block; }
+  header nav { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  header nav a { color:#ccd1d8; text-decoration:none; font-size:14px; font-weight:500; }
+  header nav a:hover { color:#fff; }
+  header .who { color:#939aa5; font-size:13px; padding-right:6px; border-right:1px solid #363b45; }
+
+  main { max-width: 940px; margin: 0 auto; padding: 26px 20px 60px; }
+
+  .card { background: var(--card); border:1px solid var(--line); border-radius: var(--radius); padding: 22px; margin-bottom: 20px; box-shadow: var(--shadow); }
+  .card h2 { margin-top:0; }
+  .card h3 { margin-top:0; font-size:15px; }
+
+  .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table { width:100%; border-collapse:collapse; font-size:14px; min-width:520px; }
+  th, td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--ink-soft); font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.03em; }
+  tr:last-child td { border-bottom:none; }
+  td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; }
+
+  .badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:12px; font-weight:700; }
+  .badge-ok { background:var(--ok-bg); color:var(--ok-ink); }
+  .badge-fail { background:var(--alert-bg); color:var(--alert-ink); }
+  .badge-plan { background:var(--accent-soft); color:var(--accent); }
+
+  form.simple { display:flex; flex-direction:column; gap:12px; max-width:380px; }
+  label { font-size:13px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:5px; }
+  input[type=text], input[type=email], input[type=password], input[type=file] {
+    padding:11px 13px; font-size:15px; border-radius:8px; border:1px solid #d6d5cf; background:#fff; width:100%;
+  }
+  input:focus { outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
+  button, .btn {
+    padding:11px 17px; font-size:15px; font-weight:600; border-radius:8px; border:none;
+    background:var(--accent); color:#fff; cursor:pointer; text-decoration:none; display:inline-block; text-align:center;
+  }
+  button:hover, .btn:hover { filter:brightness(.94); }
+  button:disabled { opacity:.65; cursor:progress; }
+  .btn.secondary { background:#fff; color:var(--ink); border:1px solid #d6d5cf; }
+
+  .notice { padding:11px 14px; border-radius:8px; margin-bottom:16px; font-size:14px; }
+  .error { background:var(--alert-bg); color:var(--alert-ink); }
+  .ok { background:var(--ok-bg); color:var(--ok-ink); }
+  .info { background:#eef3fb; color:#2b527f; }
+
+  .muted { color:#8a8f99; font-size:13px; }
+  .kv { display:grid; grid-template-columns: 190px 1fr; gap:10px 16px; font-size:14px; }
+  .kv dt { color:var(--ink-soft); font-weight:600; }
+  .kv dd { margin:0; }
+  .quota-bar { height:7px; border-radius:6px; background:#e7e8e3; overflow:hidden; margin-top:7px; }
+  .quota-bar span { display:block; height:100%; background:var(--accent); }
+  .steps { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:11px; }
+  .steps li { display:flex; gap:12px; align-items:flex-start; }
+  .steps .num { flex:0 0 auto; width:24px; height:24px; border-radius:50%; background:var(--accent); color:#fff;
+                font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+
+  @media (max-width: 620px) {
+    main { padding:18px 14px 50px; }
+    .card { padding:16px; }
+    header { padding:12px 14px; }
+    .kv { grid-template-columns: 1fr; gap:3px 0; }
+    .kv dd { margin-bottom:9px; }
+    form.simple { max-width:100%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="/"><span class="mark"></span> Ledgerlift</a>
+  <nav>
+    {% if user %}
+      <span class="who">{{ user.email }}</span>
+      <a href="/documents">Documents</a>
+      <a href="/upload">Upload</a>
+      <a href="/logout">Log out</a>
+    {% else %}
+      <a href="/login">Log in</a>
+      <a href="/signup">Sign up</a>
+    {% endif %}
+  </nav>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<script>
+  // Free-tier hosting sleeps after ~15 min idle and the first request can
+  // take 30-50s to wake it. Pinging on page load usually wakes the server
+  // while the user is still reading/typing, so the submit feels normal.
+  fetch("/health").catch(function () {});
+
+  // Extraction takes a few seconds (a model call). Without feedback the
+  // page looks frozen, which reads as broken.
+  document.querySelectorAll("form").forEach(function (form) {
+    form.addEventListener("submit", function () {
+      var btn = form.querySelector("button[type=submit]");
+      if (!btn || btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = btn.dataset.busy || "Working...";
+    });
+  });
+</script>
+</body>
+</html>

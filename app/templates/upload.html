@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Upload - Ledgerlift{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Upload an invoice or receipt</h2>
+  {% if error %}<div class="notice error">{{ error }}</div>{% endif %}
+  <form method="post" action="/upload" enctype="multipart/form-data">
+    <input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*" required>
+    <p class="muted" style="margin:10px 0 16px;">PDF, PNG, JPG, or WEBP - up to 15 MB. A phone photo of a paper receipt works.</p>
+    <button type="submit" data-busy="Reading document... (takes a few seconds)">Extract data</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>This month</h3>
+  <p style="margin:6px 0 0;"><strong>{{ used }}</strong> of {{ quota }} documents used
+     <span class="badge badge-plan">{{ user.plan }}</span></p>
+  <div class="quota-bar"><span style="width: {{ (100 if used >= quota else (used / quota * 100)) | round(1) }}%;"></span></div>
+  <p class="muted" style="margin-top:10px;">Your quota is per account, not per person. Adding a client or your accountant never increases the bill.</p>
+</div>
+
+<div class="card">
+  <h3>Nothing handy to test with?</h3>
+  <p class="muted" style="margin-bottom:12px;">Download a sample invoice and upload it to see exactly what you get back.</p>
+  <a class="btn secondary" href="/sample-invoice.png">Download sample invoice</a>
+</div>
+{% endblock %}

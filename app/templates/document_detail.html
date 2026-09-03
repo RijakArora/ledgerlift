@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.vendor_name or doc.filename }} - Ledgerlift{% endblock %}
+{% block content %}
+
+<p class="muted"><a href="/documents">&larr; All documents</a></p>
+
+{% if doc.status != "OK" %}
+<div class="card">
+  <h2>Extraction failed</h2>
+  <div class="notice error">{{ doc.error_message }}</div>
+  <p class="muted">File: {{ doc.filename }} &middot; uploaded {{ doc.uploaded_at.strftime("%Y-%m-%d %H:%M") }}</p>
+  <p class="muted">This document didn't count toward a successful extraction, but the attempt is kept here so nothing silently disappears.</p>
+</div>
+{% else %}
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+    <div>
+      <h2 style="margin-bottom:2px;">{{ doc.vendor_name or "Unknown vendor" }}</h2>
+      <span class="muted">{{ doc.filename }} &middot; {{ doc.document_type or "document" }}
+        &middot; uploaded {{ doc.uploaded_at.strftime("%Y-%m-%d %H:%M") }}</span>
+    </div>
+    <span class="badge badge-ok">extracted</span>
+  </div>
+
+  <dl class="kv" style="margin-top:20px;">
+    {% if doc.vendor_address %}<dt>Vendor address</dt><dd>{{ doc.vendor_address }}</dd>{% endif %}
+    <dt>Invoice number</dt><dd>{{ doc.invoice_number or "—" }}</dd>
+    <dt>Invoice date</dt><dd>{{ doc.invoice_date or "—" }}</dd>
+    <dt>Due date</dt><dd>{{ doc.due_date or "—" }}</dd>
+    <dt>Subtotal</dt><dd>{% if doc.subtotal is not none %}{{ doc.currency }} {{ "%.2f"|format(doc.subtotal) }}{% else %}—{% endif %}</dd>
+    <dt>Tax</dt><dd>{% if doc.tax is not none %}{{ doc.currency }} {{ "%.2f"|format(doc.tax) }}{% else %}—{% endif %}</dd>
+    <dt>Shipping</dt><dd>{% if doc.shipping is not none %}{{ doc.currency }} {{ "%.2f"|format(doc.shipping) }}{% else %}—{% endif %}</dd>
+    <dt><strong>Total</strong></dt><dd><strong>{% if doc.total is not none %}{{ doc.currency }} {{ "%.2f"|format(doc.total) }}{% else %}—{% endif %}</strong></dd>
+  </dl>
+  <p class="muted" style="margin-top:16px;">Fields shown as — were not found on the document. We leave them blank rather than guessing.</p>
+</div>
+
+{% if doc.line_items %}
+<div class="card">
+  <h3>Line items</h3>
+  <div class="table-scroll">
+    <table>
+      <tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr>
+      {% for i in doc.line_items %}
+      <tr>
+        <td>{{ i.description }}</td>
+        <td class="num">{% if i.quantity is not none %}{{ i.quantity | round(2) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if i.unit_price is not none %}{{ "%.2f"|format(i.unit_price) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if i.amount is not none %}{{ "%.2f"|format(i.amount) }}{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>Raw extracted data</h3>
+  <p class="muted">Exactly what the extractor returned - useful for checking anything above.</p>
+  <div class="table-scroll">
+    <pre style="font-size:12.5px; background:#fafaf8; padding:14px; border-radius:8px; border:1px solid var(--line); margin:0;">{{ doc.raw_json }}</pre>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

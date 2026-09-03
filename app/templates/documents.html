@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Documents - Ledgerlift{% endblock %}
+{% block content %}
+
+{% if not documents %}
+<div class="card">
+  <h2>Welcome{% if user.name %}, {{ user.name }}{% endif %} 👋</h2>
+  <p class="muted">Three steps to your first extraction.</p>
+  <ul class="steps">
+    <li><span class="num">1</span><span>Grab an invoice or receipt - a PDF, a scan, or a photo taken on your phone.</span></li>
+    <li><span class="num">2</span><span>Don't have one to hand? <a href="/sample-invoice.png">Download our sample invoice</a> and use that.</span></li>
+    <li><span class="num">3</span><span><a href="/upload">Upload it</a> - you'll get vendor, dates, totals, tax and line items back in a few seconds.</span></li>
+  </ul>
+  <div style="margin-top:18px;"><a class="btn" href="/upload">Upload your first document →</a></div>
+</div>
+{% else %}
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <div>
+      <h3 style="margin-bottom:4px;">Documents</h3>
+      <span class="muted">{{ used }} of {{ quota }} used this month
+        <span class="badge badge-plan">{{ user.plan }}</span></span>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn secondary" href="/export.csv?shape=summary">Export CSV</a>
+      <a class="btn secondary" href="/export.csv?shape=line_items">Export line items</a>
+      <a class="btn" href="/upload">Upload</a>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-scroll">
+    <table>
+      <tr>
+        <th>Uploaded</th><th>Vendor</th><th>Invoice #</th><th>Date</th>
+        <th class="num">Total</th><th>Status</th>
+      </tr>
+      {% for d in documents %}
+      <tr>
+        <td>{{ d.uploaded_at.strftime("%Y-%m-%d %H:%M") }}</td>
+        <td><a href="/documents/{{ d.id }}">{{ d.vendor_name or d.filename }}</a></td>
+        <td>{{ d.invoice_number or "-" }}</td>
+        <td>{{ d.invoice_date or "-" }}</td>
+        <td class="num">{% if d.total is not none %}{{ d.currency }} {{ "%.2f"|format(d.total) }}{% else %}-{% endif %}</td>
+        <td>
+          {% if d.status == "OK" %}<span class="badge badge-ok">OK</span>
+          {% else %}<span class="badge badge-fail">failed</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
