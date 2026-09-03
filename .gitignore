@@ -4,3 +4,6 @@ __pycache__/
 *.db
 .env
 ck.txt
+
+digests/
+scripts/cycle_state.json
