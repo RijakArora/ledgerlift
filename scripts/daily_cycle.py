@@ -39,7 +39,7 @@ API_BASE = "http://127.0.0.1:8000"
 STATE_FILE = BASE_DIR / "scripts" / "cycle_state.json"
 DIGEST_DIR = BASE_DIR / "digests"
 
-PRODUCT_URL = "https://ledgerlift-wwbx.onrender.com"
+PRODUCT_URL = "https://ledgerlift.rijakarora.in"
 
 # Rotating research queue. These are the open questions that actually
 # matter for Ledgerlift right now - add to the list as new ones surface.

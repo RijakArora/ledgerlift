@@ -5,7 +5,7 @@ Draft only — nothing here has been sent. Review, fill in `[Name]`, and send yo
 Written in first person (solo founder), because that's what's true: there is no team.
 Product name is **Ledgerlift** throughout, matching the app.
 
-Link used: https://ledgerlift-wwbx.onrender.com — plain ASCII hyphens, verified working.
+Link used: https://ledgerlift.rijakarora.in — plain ASCII hyphens, verified working.
 
 ---
 
@@ -33,7 +33,7 @@ Two things you should know before uploading anything:
   test with non-sensitive or redacted documents — don't put a client's real invoice
   through it yet.
 
-If you want a look: https://ledgerlift-wwbx.onrender.com
+If you want a look: https://ledgerlift.rijakarora.in
 
 Even a "tried it, not good enough" would genuinely help.
 
@@ -52,7 +52,7 @@ Hi [Name],
 
 We met through [where you met] — I'm the one working on the invoice data thing.
 
-I've built Ledgerlift (https://ledgerlift-wwbx.onrender.com) for people who still type
+I've built Ledgerlift (https://ledgerlift.rijakarora.in) for people who still type
 invoice and receipt details in by hand. I'm looking for a handful of people to try it
 and tell me honestly whether it's useful.
 
