@@ -1,50 +1,96 @@
-﻿**Short DM (underâ¯900â¯characters, for an existing contact)**  
+# Pilot outreach drafts
 
-Heyâ¯[Name],
+Draft only — nothing here has been sent. Review, fill in `[Name]`, and send yourself.
 
-Iâm working on a free-beta for **LedgerLift** â a live invoice/receipt extractor that pulls vendor, invoice #, dates, currency, subtotal, tax, shipping, total and line-items from a PDF, scan or phone photo and spits out a CSV.  
+Written in first person (solo founder), because that's what's true: there is no team.
+Product name is **Ledgerlift** throughout, matching the app.
 
-Weâre offering a **free tier of 150 documents/month** (no payment required, nothing to buy). Could you try it on a few of your own invoices and let us know honestly whether the extraction is accurate enough to save you time?  
-
-A few things to note:  
-- Itâs automated, not perfect. Results vary with layout/scan quality; unreadable fields come back blank, so youâll want to review before posting to the books.  
-- It runs on Googleâs **unpaid Gemini API tier**, so uploaded document contents may be reviewed by Google and used to improve Googleâs products. Please test with non-sensitive or redacted docs.  
-- Future pricing will be **per account, not per seat**.
-
-Give it a spin here: https://ledgerlift-wwbx.onrender.com  
-
-**Disclosure:** This outreach was drafted with the assistance of an AI language model.  
+Link used: https://ledgerlift-wwbx.onrender.com — plain ASCII hyphens, verified working.
 
 ---
 
-**Longer Email (warm intro)**  
+## Short DM — for someone you already know
 
-Subject: Quick favor â test a free invoice-extraction tool and give honest feedback  
+Hey [Name],
 
-Hiâ¯[Name],
+I've built a thing and I'd really value your honest opinion on it.
 
-I hope youâre doing well! Iâm reaching out because Iâm part of the team building **LedgerLift** (https://ledgerlift-wwbx.onrender.com), a live data-extraction tool aimed at freelancers, solo bookkeepers, and small-business owners who still type invoice and receipt details by hand.
+It's called Ledgerlift. You upload an invoice or receipt — PDF, scan, or just a photo
+from your phone — and it pulls out the vendor, invoice number, dates, tax, totals and
+every line item, then lets you export it all to CSV.
 
-**What LedgerLift does**  
-1. You upload a PDF, a scanned document, or a phone photo of an invoice/receipt.  
-2. Our engine extracts the vendor, invoice number, dates, currency, subtotal, tax, shipping, total and line-items.  
-3. The data can be exported as a CSV ready for your bookkeeping software.
+I'm not selling anything. There's no payment set up at all, and the free tier is 150
+documents a month. I just want to know whether it's actually accurate enough to save
+you time, or whether it's not there yet.
 
-**Why Iâm writing**  
-Weâve just opened a **free-beta** with a quota of **150 documents per month** â thereâs no payment, no credit-card, nothing to buy. Iâd love for you to try it on a handful of your own invoices and give us a straight-forward assessment: *Is the extraction accurate enough to actually shave time off your workflow?*  
+Two things you should know before uploading anything:
 
-**What you should know before you start**
+- It's automated and it isn't perfect. Accuracy depends on the layout and how clean the
+  scan is. If it can't read a field it leaves it blank rather than guessing, so you'd
+  still want to check the output before it goes near your books.
+- It currently runs on Google's unpaid Gemini API tier, which means uploaded document
+  contents may be reviewed by Google and used to improve Google's products. So please
+  test with non-sensitive or redacted documents — don't put a client's real invoice
+  through it yet.
 
-- **Automation limits** â The model isnât perfect. Extraction quality varies with the document layout and image clarity. If a field canât be read, we leave it blank rather than guessing, so youâll want to review the output before posting to the books.  
-- **Google Gemini API** â LedgerLift runs on Googleâs **unpaid Gemini API tier**. Consequently, uploaded document contents may be reviewed by Google and used to improve Googleâs products. For privacy, we recommend testing with non-sensitive or redacted documents.  
-- **Future pricing** â When we move beyond the free tier, pricing will be **per account**, not per seat, so it should stay affordable for solo practitioners.
+If you want a look: https://ledgerlift-wwbx.onrender.com
 
-If this sounds useful, just sign up at the link above, upload a few invoices, and let us know what you think. Your honest feedback will directly shape the product before we launch a paid version.
+Even a "tried it, not good enough" would genuinely help.
 
-Thanks for considering, and Iâm happy to answer any questions.
+Thanks,
+[Your Name]
 
-Best regards,  
-[Your Name]  
-Founder, LedgerLift  
+*This message was drafted with the assistance of an AI language model.*
 
-**Disclosure:** This email was drafted with the assistance of an AI language model.  
+---
+
+## Longer email — for a warm intro
+
+**Subject:** Would you try a free invoice-extraction tool and tell me if it's any good?
+
+Hi [Name],
+
+We met through [where you met] — I'm the one working on the invoice data thing.
+
+I've built Ledgerlift (https://ledgerlift-wwbx.onrender.com) for people who still type
+invoice and receipt details in by hand. I'm looking for a handful of people to try it
+and tell me honestly whether it's useful.
+
+**What it does**
+
+You upload a PDF, a scan, or a phone photo of an invoice or receipt. It extracts the
+vendor, invoice number, dates, currency, subtotal, tax, shipping, total and the
+individual line items. You can export the results as CSV — either one row per document
+for reconciliation, or one row per line item for expense coding.
+
+**What I'm asking**
+
+Try it on a few of your own invoices and tell me whether the extraction is accurate
+enough to actually save you time. That's it. I'd rather hear "this doesn't work for my
+documents" now than find out after I've built the wrong thing.
+
+There's nothing to buy — no payment is set up, and the free tier covers 150 documents a
+month.
+
+**What you should know first**
+
+- **It's not perfect.** Extraction quality varies with document layout and scan quality.
+  When a field can't be read, it comes back blank rather than guessed — I'd rather show
+  you a gap than a confident wrong number. You should still review anything before it
+  goes into your books.
+- **Please use non-sensitive or redacted documents for now.** Ledgerlift currently runs
+  on Google's unpaid Gemini API tier, which means uploaded document contents may be
+  reviewed by Google and used to improve Google's products. I'm not comfortable asking
+  you to put a client's real invoice through that, so please don't. That changes when I
+  move to the paid tier, and I'll say so when it does.
+- **On pricing later:** it'll be per account, not per seat. Sharing access with a client
+  or your accountant won't multiply your bill, which is the part I think most tools in
+  this space get wrong.
+
+If you're up for it, the link is above. Any reaction is useful — including a blunt one.
+
+Thanks for reading,
+[Your Name]
+Ledgerlift
+
+*This email was drafted with the assistance of an AI language model.*
