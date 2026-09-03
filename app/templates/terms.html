@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Terms &amp; Conditions - Ledgerlift{% endblock %}
+{% block content %}
+<div class="card legal">
+  <h1>Terms &amp; Conditions</h1>
+  <p class="updated">Last updated {{ site.updated }}</p>
+
+  <p>{{ site.brand }} is a service operated by <strong>{{ site.legal_name }}</strong>, a sole proprietor
+     ("we", "us"). By creating an account or using {{ site.brand }} you agree to these terms. If you do
+     not agree with them, please do not use the service.</p>
+
+  <h2>1. What the service does</h2>
+  <p>{{ site.brand }} reads invoices and receipts you upload and returns structured data - vendor,
+     invoice number, dates, currency, subtotal, tax, shipping, total, and line items - which you can
+     review in the app and export as CSV.</p>
+
+  <h2>2. Accuracy, and what you are responsible for</h2>
+  <p>Extraction is automated and <strong>is not guaranteed to be accurate or complete</strong>. Results
+     depend on document layout, scan quality, and the underlying model. Fields that cannot be read
+     are returned blank rather than guessed, but errors are still possible.</p>
+  <p><strong>You are responsible for reviewing extracted data before relying on it</strong>, including
+     before entering it into your accounts, filing anything with a tax authority, or making a payment.
+     {{ site.brand }} is a time-saving tool, not an accountant, bookkeeper, auditor, or tax adviser,
+     and nothing it produces is financial, accounting, or tax advice.</p>
+
+  <h2>3. Your account</h2>
+  <p>You are responsible for keeping your login credentials secure and for activity under your account.
+     Tell us promptly at <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a> if you
+     believe your account has been accessed without your permission.</p>
+
+  <h2>4. Acceptable use</h2>
+  <p>Do not use {{ site.brand }} to upload content you do not have the right to process, to break any
+     law, to attempt to disrupt or gain unauthorised access to the service or other users' data, or to
+     resell the service as your own without our agreement.</p>
+
+  <h2>5. Plans, quotas and billing</h2>
+  <p>Each plan includes a monthly document quota. <strong>Quotas apply to the account, not per user</strong> -
+     sharing access with a colleague, client, or your accountant does not increase your price. When you
+     reach your quota, further uploads are blocked until the next monthly period or until you upgrade.</p>
+  <p>Where paid plans are offered, payments are handled by our payment provider, who may act as
+     merchant of record and appear on your statement. Refunds are covered by our
+     <a href="/refund-policy">Refund Policy</a>, which includes a 30-day money-back guarantee.</p>
+
+  <h2>6. Your data</h2>
+  <p>You keep ownership of the documents you upload and the data extracted from them. How we handle
+     that data - including that documents are sent to a third-party provider for processing - is set
+     out in our <a href="/privacy">Privacy Policy</a>. Please read it; it contains information that
+     matters if your documents are sensitive.</p>
+
+  <h2>7. Availability</h2>
+  <p>We do not offer an uptime guarantee. The service may be unavailable for maintenance, or because
+     of a problem at a provider we depend on. We will make reasonable efforts to keep it running and
+     to fix problems promptly.</p>
+
+  <h2>8. Where the service is offered</h2>
+  <p>{{ site.brand }} is currently offered to customers in the United States only.</p>
+
+  <h2>9. Ending your account</h2>
+  <p>You can stop using {{ site.brand }} at any time and ask us to delete your account and data by
+     emailing <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a>. We may suspend or
+     close an account that breaches these terms; where it is reasonable to do so, we will tell you why
+     first.</p>
+
+  <h2>10. Liability</h2>
+  <p>The service is provided "as is". To the extent permitted by law, our total liability to you for
+     any claim relating to {{ site.brand }} is limited to the amount you paid us in the 12 months
+     before the claim. We are not liable for indirect or consequential losses, including lost profits
+     or losses arising from reliance on extracted data you did not review.</p>
+  <p>Nothing in these terms limits liability that cannot lawfully be limited.</p>
+
+  <h2>11. Changes to these terms</h2>
+  <p>We may update these terms. If a change is material we will update this page and the date above,
+     and where reasonable we will notify account holders by email.</p>
+
+  <h2>12. Governing law</h2>
+  <p>These terms are governed by the laws of {{ site.jurisdiction }}.</p>
+
+  <h2>13. Contact</h2>
+  <p>{{ site.legal_name }} &middot; <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a></p>
+</div>
+{% endblock %}

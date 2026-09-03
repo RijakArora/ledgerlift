@@ -84,6 +84,21 @@
   .steps .num { flex:0 0 auto; width:24px; height:24px; border-radius:50%; background:var(--accent); color:#fff;
                 font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px; }
 
+  footer { border-top:1px solid var(--line); margin-top:40px; padding:22px 20px 40px; background:#f0f1ee; }
+  footer .inner { max-width:940px; margin:0 auto; display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+  footer a { color:var(--ink-soft); text-decoration:none; font-size:13.5px; margin-right:16px; }
+  footer a:hover { color:var(--ink); text-decoration:underline; }
+  footer .co { color:#8a8f99; font-size:13px; }
+
+  /* Legal pages */
+  .legal { max-width:760px; }
+  .legal h1 { font-size:28px; margin-bottom:4px; }
+  .legal h2 { font-size:17px; margin-top:28px; }
+  .legal p, .legal li { font-size:15px; color:#33373f; }
+  .legal ul { padding-left:20px; }
+  .legal .updated { color:#8a8f99; font-size:13px; margin-top:0; }
+  .placeholder { background:#fdf3e0; color:#8a5a10; padding:1px 6px; border-radius:4px; font-weight:600; }
+
   @media (max-width: 620px) {
     main { padding:18px 14px 50px; }
     .card { padding:16px; }
@@ -112,6 +127,17 @@
 <main>
 {% block content %}{% endblock %}
 </main>
+<footer>
+  <div class="inner">
+    <div>
+      <a href="/terms">Terms &amp; Conditions</a>
+      <a href="/refund-policy">Refund Policy</a>
+      <a href="/privacy">Privacy Policy</a>
+      <a href="mailto:{{ site.support_email }}">Support</a>
+    </div>
+    <div class="co">{{ site.brand }} &middot; support: {{ site.support_email }}</div>
+  </div>
+</footer>
 <script>
   // Free-tier hosting sleeps after ~15 min idle and the first request can
   // take 30-50s to wake it. Pinging on page load usually wakes the server

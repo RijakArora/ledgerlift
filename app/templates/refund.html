@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Refund Policy - Ledgerlift{% endblock %}
+{% block content %}
+<div class="card legal">
+  <h1>Refund Policy</h1>
+  <p class="updated">Last updated {{ site.updated }}</p>
+
+  <h2>30-day money-back guarantee</h2>
+  <p>If you are not happy with {{ site.brand }} for any reason, email
+     <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a> within <strong>30 days</strong> of
+     your payment and we will refund it in full. You do not need to justify the request, and it
+     applies whether you processed one document or all of them.</p>
+
+  <h2>How to request a refund</h2>
+  <p>Email <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a> from the address on your
+     account and say you would like a refund. We will confirm and process it. Refunds are issued to
+     the original payment method.</p>
+
+  <h2>Timing</h2>
+  <p>We aim to action refund requests within 2 business days of receiving them. Once processed, the
+     money typically takes a few business days to appear, depending on your bank or card issuer.</p>
+
+  <h2>Cancelling</h2>
+  <p>You can cancel a subscription at any time. Cancelling stops future charges; your plan stays
+     active until the end of the period you have already paid for. Cancelling on its own does not
+     trigger a refund - email us if you want one.</p>
+
+  <h2>If extraction does not work for your documents</h2>
+  <p>Extraction quality varies with document layout and scan quality, and we do not pretend
+     otherwise. If it does not work well enough on your documents, that is a legitimate reason to ask
+     for your money back within the 30-day window, and we would rather refund you than keep payment
+     for something that is not doing the job.</p>
+
+  <h2>Free tier</h2>
+  <p>The free tier costs nothing, so there is nothing to refund. You can stop using it at any time
+     and ask us to delete your account and data.</p>
+
+  <h2>Questions</h2>
+  <p>Anything unclear here, ask: <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a>.</p>
+</div>
+{% endblock %}

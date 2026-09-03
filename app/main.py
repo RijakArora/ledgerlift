@@ -31,6 +31,36 @@ templates = Jinja2Templates(directory="app/templates")
 
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # 15 MB
 
+# Identity used in the legal pages. Paddle's domain review requires the
+# company or sole proprietor's brand in the Terms, and working buyer
+# support contact details. These deliberately default to obvious
+# placeholders rather than invented values - a fake support address would
+# pass review and then fail a real customer.
+def _env(key: str, default: str) -> str:
+    """os.environ.get() returns "" for a var that's present but blank,
+    which silently defeats the placeholder defaults below - the legal
+    pages then render with no name and no support address at all. Treat
+    blank as unset so a missing value is loudly visible instead."""
+    return (os.environ.get(key) or "").strip() or default
+
+
+SITE = {
+    "brand": _env("BRAND_NAME", "Ledgerlift"),
+    "legal_name": _env("LEGAL_NAME", "[SET LEGAL_NAME - your full name as sole proprietor]"),
+    "support_email": _env("SUPPORT_EMAIL", "[SET SUPPORT_EMAIL]"),
+    "jurisdiction": _env("JURISDICTION", "India"),
+    "updated": "3 September 2026",
+    # Drives the privacy policy's third-party processing disclosure, so it
+    # stays true to the tier actually in use. On Google's unpaid tier,
+    # Google's API terms state it "uses the content you submit... to
+    # provide, improve, and develop Google products" and that "human
+    # reviewers may read, annotate, and process your API input and
+    # output". On the paid tier Google does not use prompts or responses
+    # to improve its products. Defaults to False = the honest disclosure.
+    # Flip only once billing is genuinely enabled on the API key.
+    "gemini_paid_tier": os.environ.get("GEMINI_PAID_TIER", "").lower() in ("1", "true", "yes"),
+}
+
 
 def _docs_this_month(db: Session, user_id: int) -> int:
     start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -42,7 +72,7 @@ def _docs_this_month(db: Session, user_id: int) -> int:
 
 
 def _ctx(request: Request, user, **kw) -> dict:
-    return {"request": request, "user": user, **kw}
+    return {"request": request, "user": user, "site": SITE, **kw}
 
 
 @app.get("/health")
@@ -50,9 +80,27 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)):
-    return RedirectResponse("/documents" if current_user(request, db) else "/login")
+    user = current_user(request, db)
+    if user:
+        return RedirectResponse("/documents")
+    return templates.TemplateResponse("landing.html", _ctx(request, None))
+
+
+@app.get("/terms", response_class=HTMLResponse)
+def terms(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse("terms.html", _ctx(request, current_user(request, db)))
+
+
+@app.get("/refund-policy", response_class=HTMLResponse)
+def refund_policy(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse("refund.html", _ctx(request, current_user(request, db)))
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse("privacy.html", _ctx(request, current_user(request, db)))
 
 
 @app.get("/signup", response_class=HTMLResponse)

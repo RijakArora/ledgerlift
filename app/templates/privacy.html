@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy - Ledgerlift{% endblock %}
+{% block content %}
+<div class="card legal">
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated {{ site.updated }}</p>
+
+  <p>{{ site.brand }} is operated by {{ site.legal_name }} ("we", "us"). This policy explains what we
+     collect, what we do with it, and who else touches it. Questions:
+     <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a>.</p>
+
+  <h2>What we collect</h2>
+  <ul>
+    <li><strong>Account details:</strong> your email address, an optional name, and a hashed
+        password. We never store your password itself.</li>
+    <li><strong>Documents you upload:</strong> invoices and receipts you submit for extraction.</li>
+    <li><strong>Extracted data:</strong> the fields read from those documents - vendor, invoice
+        number, dates, currency, subtotal, tax, shipping, total, and line items - plus the original
+        filename and the raw extractor output.</li>
+    <li><strong>Basic operational logs:</strong> standard server logs needed to run and debug the
+        service.</li>
+  </ul>
+
+  <h2>What we do not keep</h2>
+  <p><strong>We do not retain the uploaded file itself.</strong> Your document is sent for processing,
+     the extracted fields are saved to your account, and the file's contents are not written to our
+     database or stored on disk by us afterwards.</p>
+
+  <h2>Who else processes your documents</h2>
+  <p>To read a document we send it to <strong>Google</strong> (the Gemini API). This is the core of how
+     the service works - your document contents leave our systems and are processed by Google.</p>
+
+  {% if site.gemini_paid_tier %}
+  <p>We use Google's paid API tier. Under Google's API terms for paid services, Google does not use
+     your prompts or responses - including uploaded files - to improve its products. Google logs
+     content for a limited period solely to detect and prevent abuse.</p>
+  {% else %}
+  <p class="notice error" style="display:block;"><strong>Please read this before uploading anything sensitive.</strong>
+     We currently use Google's unpaid API tier. Under Google's API terms for unpaid services, Google
+     uses content submitted to the API to provide, improve and develop Google products and services,
+     and human reviewers may read, annotate and process API input and output (disconnected from your
+     account and API key). This means the contents of documents you upload may be reviewed by Google
+     and used to improve Google's products. Do not upload documents you are not comfortable being
+     handled on those terms.</p>
+  {% endif %}
+
+  <p>We also use <strong>Render</strong> for hosting and data storage. Application data is stored in the
+     United States.</p>
+
+  <h2>Why we process it</h2>
+  <p>To provide the service you signed up for: reading your documents, storing the extracted results
+     in your account, letting you export them, and enforcing your plan's monthly limits. We do not
+     sell your data, and we do not use your documents for advertising.</p>
+
+  <h2>Retention and deletion</h2>
+  <p>Extracted records stay in your account until you delete them or ask us to close your account.
+     Email <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a> to request deletion of
+     your account and its data, and we will action it and confirm.</p>
+
+  <h2>Security</h2>
+  <p>Traffic is encrypted in transit (HTTPS). Passwords are hashed with bcrypt. Access to your
+     documents and extracted data is scoped to your account.</p>
+  <p>No service is perfectly secure, and we would rather say so plainly than imply otherwise. If you
+     become aware of a security problem with {{ site.brand }}, please tell us at
+     <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a>.</p>
+
+  <h2>Where this service is offered</h2>
+  <p>{{ site.brand }} is currently offered to customers in the United States only. We are not yet set
+     up for the additional obligations that apply to customers in the UK and EU, and we would rather
+     not take your money than take it while unable to meet them properly.</p>
+
+  <h2>Your choices</h2>
+  <p>You can access your extracted data at any time in the app, export it as CSV, and request deletion
+     of your account and data by emailing us.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes materially we will update this page and the date above.</p>
+</div>
+{% endblock %}

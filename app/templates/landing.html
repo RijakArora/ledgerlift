@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Ledgerlift - stop typing invoices by hand{% endblock %}
+{% block content %}
+
+<div class="card" style="padding:34px 26px;">
+  <h1 style="font-size:32px; margin:0 0 10px; line-height:1.2;">Stop typing invoices by hand.</h1>
+  <p style="font-size:17px; color:#41464f; max-width:600px; margin-top:0;">
+    Upload an invoice or receipt - a PDF, a scan, or a photo from your phone - and get back
+    the vendor, dates, tax, totals and every line item as clean data you can export to CSV.
+  </p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:22px;">
+    <a class="btn" href="/signup">Start free - 150 documents/month</a>
+    <a class="btn secondary" href="/sample-invoice.png">See a sample invoice</a>
+  </div>
+  <p class="muted" style="margin-top:14px;">No card required to start.</p>
+</div>
+
+<div class="card">
+  <h3>Priced per account, never per seat</h3>
+  <p>Most tools in this category charge for every person who touches the account. Add a client,
+     add your accountant, and the bill multiplies. That pricing punishes exactly the people who
+     need this most - solo bookkeepers running a handful of client books.</p>
+  <p style="margin-bottom:0;"><strong>Ledgerlift's quota belongs to the account, not to a seat.</strong>
+     Share access with a client or your accountant and your price does not change.</p>
+</div>
+
+<div class="card">
+  <h3>How it works</h3>
+  <ul class="steps">
+    <li><span class="num">1</span><span>Upload a PDF, PNG, JPG or WEBP - a phone photo of a paper receipt is fine.</span></li>
+    <li><span class="num">2</span><span>It reads the document and pulls out vendor, invoice number, dates, currency, subtotal, tax, shipping, total, and each line item.</span></li>
+    <li><span class="num">3</span><span>Review it, then export to CSV - either one row per document for reconciliation, or one row per line item for expense coding.</span></li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>What it will not do</h3>
+  <p>If a field genuinely isn't on the document, it comes back blank rather than guessed. A missing
+     purchase-order number is an inconvenience; an invented one is a bookkeeping error you may not
+     catch. Every document also shows the raw extracted output, so you can check anything on screen
+     against what actually came back.</p>
+  <p style="margin-bottom:0;" class="muted">Extraction is automated and not perfect. Review the results before
+     posting them to your books - it's built to save you the typing, not to remove the checking.</p>
+</div>
+
+<div class="card">
+  <h3>Plans</h3>
+  <div class="table-scroll">
+    <table>
+      <tr><th>Plan</th><th class="num">Documents / month</th><th class="num">Price</th></tr>
+      <tr><td>Free</td><td class="num">150</td><td class="num">$0</td></tr>
+      <tr><td>Low volume</td><td class="num">600</td><td class="num">see pricing at signup</td></tr>
+      <tr><td>Mid volume</td><td class="num">2,000</td><td class="num">see pricing at signup</td></tr>
+    </table>
+  </div>
+  <p class="muted" style="margin-top:12px;">Paid plans are not open yet - the free tier is live today and
+     paid tiers open once billing is enabled. Every plan includes shared access at no extra cost.</p>
+</div>
+
+<div class="card">
+  <h3>Questions?</h3>
+  <p style="margin-bottom:0;">Email <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a> -
+     a real person reads it. See our <a href="/terms">Terms</a>,
+     <a href="/refund-policy">Refund Policy</a> and <a href="/privacy">Privacy Policy</a>.</p>
+</div>
+{% endblock %}
