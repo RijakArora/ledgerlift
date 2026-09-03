@@ -80,12 +80,26 @@ def health():
     return {"status": "ok"}
 
 
+def _sample_extraction() -> dict | None:
+    """The extraction shown on the landing page is a real run of this
+    system against sample_data/sample_invoice.png, saved to disk - not a
+    mockup and not hand-written numbers. Regenerate it by re-running
+    extraction on the sample if the output format ever changes."""
+    path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                        "sample_data", "sample_extraction.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None  # landing page simply omits the proof section
+
+
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if user:
         return RedirectResponse("/documents")
-    return templates.TemplateResponse("landing.html", _ctx(request, None))
+    return templates.TemplateResponse("landing.html", _ctx(request, None, proof=_sample_extraction()))
 
 
 @app.get("/terms", response_class=HTMLResponse)

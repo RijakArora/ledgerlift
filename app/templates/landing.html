@@ -1,66 +1,126 @@
 {% extends "base.html" %}
-{% block title %}Ledgerlift - stop typing invoices by hand{% endblock %}
+{% block title %}Ledgerlift - invoice and receipt data, without the typing{% endblock %}
 {% block content %}
 
-<div class="card" style="padding:34px 26px;">
-  <h1 style="font-size:32px; margin:0 0 10px; line-height:1.2;">Stop typing invoices by hand.</h1>
-  <p style="font-size:17px; color:#41464f; max-width:600px; margin-top:0;">
-    Upload an invoice or receipt - a PDF, a scan, or a photo from your phone - and get back
-    the vendor, dates, tax, totals and every line item as clean data you can export to CSV.
+<div class="card" style="padding:44px 32px 38px;">
+  <p class="eyebrow">For freelancers, bookkeepers &amp; small businesses</p>
+  <h1 style="max-width:15ch;">Stop typing invoices by hand.</h1>
+  <p class="lede" style="max-width:60ch;">
+    Upload an invoice or receipt - a PDF, a scan, or a photo from your phone - and get the vendor,
+    dates, tax, totals and every line item back as clean data. Export to CSV in one click.
   </p>
-  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:22px;">
-    <a class="btn" href="/signup">Start free - 150 documents/month</a>
-    <a class="btn secondary" href="/sample-invoice.png">See a sample invoice</a>
+  <div class="btn-row" style="margin-top:26px;">
+    <a class="btn" href="/signup">Start free - 150 documents a month</a>
+    <a class="btn secondary" href="#proof">See real output</a>
   </div>
-  <p class="muted" style="margin-top:14px;">No card required to start.</p>
+  <p class="muted" style="margin-top:14px;">No card required. Nothing to buy.</p>
 </div>
 
-<div class="card">
-  <h3>Priced per account, never per seat</h3>
-  <p>Most tools in this category charge for every person who touches the account. Add a client,
-     add your accountant, and the bill multiplies. That pricing punishes exactly the people who
-     need this most - solo bookkeepers running a handful of client books.</p>
-  <p style="margin-bottom:0;"><strong>Ledgerlift's quota belongs to the account, not to a seat.</strong>
-     Share access with a client or your accountant and your price does not change.</p>
+{% if proof %}
+<h2 id="proof" style="margin:38px 0 14px;">This is a real extraction, not a mockup</h2>
+<p class="muted" style="margin:-6px 0 18px; max-width:70ch;">
+  The invoice below was run through Ledgerlift and this is exactly what came back.
+  You can <a href="/sample-invoice.png">download the same file</a> and try it yourself.
+</p>
+
+<div class="card flush">
+  <div class="split">
+    <div>
+      <h3 style="margin-bottom:14px;">What you upload</h3>
+      <img class="shot" src="/sample-invoice.png" alt="Sample invoice from Brightwood Supply Co.">
+    </div>
+    <div>
+      <h3 style="margin-bottom:14px;">What you get back</h3>
+      <dl class="kv" style="grid-template-columns:130px 1fr;">
+        <dt>Vendor</dt><dd>{{ proof.vendor_name or "—" }}</dd>
+        <dt>Invoice #</dt><dd>{{ proof.invoice_number or "—" }}</dd>
+        <dt>Invoice date</dt><dd>{{ proof.invoice_date or "—" }}</dd>
+        <dt>Due date</dt><dd>{{ proof.due_date or "—" }}</dd>
+        <dt>Subtotal</dt><dd>{% if proof.subtotal is not none %}{{ proof.currency }} {{ "%.2f"|format(proof.subtotal) }}{% else %}—{% endif %}</dd>
+        <dt>Tax</dt><dd>{% if proof.tax is not none %}{{ proof.currency }} {{ "%.2f"|format(proof.tax) }}{% else %}—{% endif %}</dd>
+        <dt>Shipping</dt><dd>{% if proof.shipping is not none %}{{ proof.currency }} {{ "%.2f"|format(proof.shipping) }}{% else %}—{% endif %}</dd>
+        <dt><strong>Total</strong></dt><dd><strong>{% if proof.total is not none %}{{ proof.currency }} {{ "%.2f"|format(proof.total) }}{% else %}—{% endif %}</strong></dd>
+      </dl>
+
+      {% if proof.line_items %}
+      <h3 style="margin:22px 0 8px;">Line items</h3>
+      <div class="table-scroll">
+        <table>
+          <tr><th>Description</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Amount</th></tr>
+          {% for i in proof.line_items %}
+          <tr>
+            <td>{{ i.description }}</td>
+            <td class="num">{{ i.quantity | round(0) | int if i.quantity is not none else "—" }}</td>
+            <td class="num">{{ "%.2f"|format(i.unit_price) if i.unit_price is not none else "—" }}</td>
+            <td class="num">{{ "%.2f"|format(i.amount) if i.amount is not none else "—" }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+      {% endif %}
+      <p class="muted" style="margin-top:16px;">Dates are normalised - "August 14, 2026" on the page becomes
+         <code>2026-08-14</code> in your export.</p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="grid-2">
+  <div class="card">
+    <h3>Priced per account, never per seat</h3>
+    <p style="color:var(--ink-2); margin-bottom:0;">Most tools here charge for every person who touches
+       the account. Add a client, add your accountant, and the bill multiplies - which punishes exactly
+       the people who need this most. <strong>Your quota belongs to the account.</strong> Share access
+       freely; your price doesn't move.</p>
+  </div>
+  <div class="card">
+    <h3>Blank beats a confident guess</h3>
+    <p style="color:var(--ink-2); margin-bottom:0;">If a field isn't on the document, it comes back empty
+       rather than invented. A missing PO number is an inconvenience; a fabricated one is an error you
+       might not catch. Every document also shows the raw output, so you can check anything on screen.</p>
+  </div>
 </div>
 
 <div class="card">
   <h3>How it works</h3>
   <ul class="steps">
-    <li><span class="num">1</span><span>Upload a PDF, PNG, JPG or WEBP - a phone photo of a paper receipt is fine.</span></li>
+    <li><span class="num">1</span><span>Upload a PDF, PNG, JPG or WEBP. A phone photo of a paper receipt is fine.</span></li>
     <li><span class="num">2</span><span>It reads the document and pulls out vendor, invoice number, dates, currency, subtotal, tax, shipping, total, and each line item.</span></li>
-    <li><span class="num">3</span><span>Review it, then export to CSV - either one row per document for reconciliation, or one row per line item for expense coding.</span></li>
+    <li><span class="num">3</span><span>Review it, then export - one row per document for reconciliation, or one row per line item for expense coding.</span></li>
   </ul>
-</div>
-
-<div class="card">
-  <h3>What it will not do</h3>
-  <p>If a field genuinely isn't on the document, it comes back blank rather than guessed. A missing
-     purchase-order number is an inconvenience; an invented one is a bookkeeping error you may not
-     catch. Every document also shows the raw extracted output, so you can check anything on screen
-     against what actually came back.</p>
-  <p style="margin-bottom:0;" class="muted">Extraction is automated and not perfect. Review the results before
-     posting them to your books - it's built to save you the typing, not to remove the checking.</p>
 </div>
 
 <div class="card">
   <h3>Plans</h3>
   <div class="table-scroll">
     <table>
-      <tr><th>Plan</th><th class="num">Documents / month</th><th class="num">Price</th></tr>
-      <tr><td>Free</td><td class="num">150</td><td class="num">$0</td></tr>
-      <tr><td>Low volume</td><td class="num">600</td><td class="num">see pricing at signup</td></tr>
-      <tr><td>Mid volume</td><td class="num">2,000</td><td class="num">see pricing at signup</td></tr>
+      <tr><th>Plan</th><th class="num">Documents / month</th><th class="num">Price</th><th>Status</th></tr>
+      <tr><td><strong>Free</strong></td><td class="num">150</td><td class="num">$0</td><td><span class="badge badge-ok">available now</span></td></tr>
+      <tr><td>Low volume</td><td class="num">600</td><td class="num">~$25-35</td><td><span class="badge badge-warn">not open yet</span></td></tr>
+      <tr><td>Mid volume</td><td class="num">2,000</td><td class="num">~$50-80</td><td><span class="badge badge-warn">not open yet</span></td></tr>
     </table>
   </div>
-  <p class="muted" style="margin-top:12px;">Paid plans are not open yet - the free tier is live today and
-     paid tiers open once billing is enabled. Every plan includes shared access at no extra cost.</p>
+  <p class="muted" style="margin-top:14px;">Paid plans aren't open - billing isn't set up yet, so the free
+     tier is what's genuinely available today and those prices are indicative, not final. Every plan
+     includes shared access at no extra cost.</p>
 </div>
 
 <div class="card">
-  <h3>Questions?</h3>
-  <p style="margin-bottom:0;">Email <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a> -
-     a real person reads it. See our <a href="/terms">Terms</a>,
-     <a href="/refund-policy">Refund Policy</a> and <a href="/privacy">Privacy Policy</a>.</p>
+  <h3>Before you upload anything sensitive</h3>
+  <p style="color:var(--ink-2);">Extraction currently runs on Google's unpaid Gemini API tier, which means
+     uploaded document contents may be reviewed by Google and used to improve Google's products. Please
+     test with non-sensitive or redacted documents for now. This changes when billing moves to the paid
+     tier, and the <a href="/privacy">Privacy Policy</a> will say so when it does.</p>
+  <p class="muted" style="margin-bottom:0;">Extraction is automated and imperfect - accuracy varies with
+     layout and scan quality. Review results before posting them to your books.</p>
+</div>
+
+<div class="card" style="text-align:center; padding:34px 26px;">
+  <h2 style="margin-bottom:8px;">Try it on your own invoice</h2>
+  <p class="muted" style="margin-top:0;">150 documents a month, free. Questions?
+     <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a></p>
+  <div class="btn-row" style="justify-content:center; margin-top:18px;">
+    <a class="btn" href="/signup">Create a free account</a>
+  </div>
 </div>
 {% endblock %}
