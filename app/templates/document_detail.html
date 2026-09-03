@@ -40,14 +40,14 @@
         style="margin-top:16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
     <label for="client_id" style="margin:0;">Client</label>
     <select id="client_id" name="client_id"
-            style="padding:8px 11px; border-radius:8px; border:1px solid #d9dad4; background:#fff;">
+            style="width:auto; min-width:180px;">
       <option value="">— none —</option>
       {% for c in clients %}
       <option value="{{ c.id }}" {% if doc.client_id == c.id %}selected{% endif %}>{{ c.name }}</option>
       {% endfor %}
     </select>
-    <button type="submit" class="secondary" data-busy="Saving..."
-            style="background:#fff; color:var(--ink); border:1px solid #d9dad4; padding:8px 14px;">Save</button>
+    <button type="submit" class="btn secondary" data-busy="Saving..."
+            style="padding:8px 14px;">Save</button>
   </form>
   {% endif %}
 </div>
@@ -110,7 +110,7 @@
   <p class="muted">Exactly what the extractor returned{% if doc.edited_at %}, before your corrections{% endif %} -
      useful for checking anything above.</p>
   <div class="table-scroll">
-    <pre style="font-size:12.5px; background:#fafaf8; padding:14px; border-radius:8px; border:1px solid var(--line); margin:0;">{{ doc.raw_json }}</pre>
+    <pre style="font-size:12.5px; padding:14px; border-radius:8px; border:1px solid var(--line); margin:0; overflow-x:auto;">{{ doc.raw_json }}</pre>
   </div>
 </div>
 {% endif %}

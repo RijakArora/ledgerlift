@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Upload - Ledgerlift{% endblock %}
+
 {% block content %}
 <div class="card">
   <h2>Upload invoices or receipts</h2>
@@ -15,18 +16,24 @@
   {% endif %}
 
   <form method="post" action="/upload" enctype="multipart/form-data">
-    <label for="files">Files</label>
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('files').click()">
+      <span class="dz-icon">&#8681;</span>
+      <span class="dz-main">Drop files here, or click to choose</span>
+      <p class="muted" style="margin:8px 0 0;">
+        As many as you like - a whole month of receipts in one go is fine.<br>
+        PDF, PNG, JPG or WEBP, up to 15 MB each. A phone photo works.
+      </p>
+      <ul class="file-list" id="file-list" hidden></ul>
+    </div>
     <input id="files" type="file" name="files" multiple
-           accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*" required>
-    <p class="muted" style="margin:8px 0 16px;">
-      Select as many as you like - a whole month of receipts in one go is fine.
-      PDF, PNG, JPG or WEBP, up to 15 MB each. A phone photo works.
-    </p>
+           accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*" required
+           style="display:none;">
+    <div style="height:16px;"></div>
 
     {% if clients %}
     <label for="client_id">Assign to client <span class="muted">(optional)</span></label>
     <select id="client_id" name="client_id"
-            style="padding:11px 13px; font-size:15px; border-radius:9px; border:1px solid #d9dad4; width:100%; max-width:380px; background:#fff;">
+            style="width:100%; max-width:380px;">
       <option value="">— no client —</option>
       {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
     </select>
@@ -54,4 +61,51 @@
   <p class="muted" style="margin-bottom:12px;">Download a sample invoice and upload it to see exactly what you get back.</p>
   <a class="btn secondary" href="/sample-invoice.png">Download sample invoice</a>
 </div>
+
+<script>
+  (function () {
+    var dz = document.getElementById("dropzone");
+    var input = document.getElementById("files");
+    var list = document.getElementById("file-list");
+    if (!dz || !input || !list) return;
+
+    function show(files) {
+      list.innerHTML = "";
+      if (!files || !files.length) { list.hidden = true; return; }
+      var total = 0;
+      Array.prototype.forEach.call(files, function (f) {
+        total += f.size;
+        var li = document.createElement("li");
+        li.textContent = f.name + "  (" + Math.max(1, Math.round(f.size / 1024)) + " KB)";
+        list.appendChild(li);
+      });
+      var sum = document.createElement("li");
+      sum.style.fontWeight = "620";
+      sum.textContent = files.length + " file" + (files.length !== 1 ? "s" : "") +
+                        " - " + Math.max(1, Math.round(total / 1024)) + " KB total";
+      list.appendChild(sum);
+      list.hidden = false;
+    }
+
+    input.addEventListener("change", function () { show(input.files); });
+
+    ["dragenter", "dragover"].forEach(function (ev) {
+      dz.addEventListener(ev, function (e) {
+        e.preventDefault(); e.stopPropagation(); dz.classList.add("dragging");
+      });
+    });
+    ["dragleave", "drop"].forEach(function (ev) {
+      dz.addEventListener(ev, function (e) {
+        e.preventDefault(); e.stopPropagation(); dz.classList.remove("dragging");
+      });
+    });
+    dz.addEventListener("drop", function (e) {
+      if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+      // Assigning to input.files keeps the plain form POST working - no
+      // custom upload path, so behaviour is identical to picking files.
+      input.files = e.dataTransfer.files;
+      show(input.files);
+    });
+  })();
+</script>
 {% endblock %}
