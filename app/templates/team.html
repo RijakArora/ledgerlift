@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Sharing - Ledgerlift{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h2>Share this account</h2>
+  <p class="muted" style="margin-top:-4px;">Everyone you invite sees the same documents and clients, and
+     works from the same monthly quota. <strong>Adding people never changes your price.</strong></p>
+
+  {% if user.is_owner %}
+  <form method="post" action="/team/invite" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
+    <input type="email" name="email" placeholder="their@email.com" required style="flex:1; min-width:240px;">
+    <button type="submit" data-busy="Creating link...">Create invite link</button>
+  </form>
+  <p class="muted" style="margin-top:10px;">This creates a single-use link that expires in 14 days.
+     Send it to them yourself — we don't email it, so nothing leaves here without you.</p>
+  {% else %}
+  <div class="notice info" style="margin-top:14px;">
+    You're a member of {{ owner.name or owner.email }}'s account. Only the account owner can invite or remove people.
+  </div>
+  {% endif %}
+</div>
+
+{% if pending %}
+<div class="card">
+  <h3>Pending invites</h3>
+  <p class="muted" style="margin-top:-6px;">Copy a link and send it however you like.</p>
+  <div class="table-scroll">
+    <table>
+      <tr><th>For</th><th>Link</th><th>Created</th></tr>
+      {% for i in pending %}
+      <tr>
+        <td>{{ i.email or "anyone with the link" }}</td>
+        <td><input type="text" readonly value="{{ base_url }}/join/{{ i.token }}"
+                   onclick="this.select()" style="font-size:12.5px; padding:7px 9px;"></td>
+        <td class="muted">{{ i.created_at.strftime("%Y-%m-%d") }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>People with access</h3>
+  <div class="table-scroll">
+    <table>
+      <tr><th>Person</th><th>Role</th><th>Joined</th>{% if user.is_owner %}<th></th>{% endif %}</tr>
+      {% for m in members %}
+      <tr>
+        <td>{{ m.name or m.email }}{% if m.id == user.id %} <span class="muted">(you)</span>{% endif %}
+          <br><span class="muted">{{ m.email }}</span></td>
+        <td>{% if m.is_owner %}<span class="badge badge-plan">owner</span>{% else %}<span class="badge badge-ok">member</span>{% endif %}</td>
+        <td class="muted">{{ m.created_at.strftime("%Y-%m-%d") if m.created_at else "—" }}</td>
+        {% if user.is_owner %}
+        <td>
+          {% if not m.is_owner %}
+          <form method="post" action="/team/revoke" style="margin:0;">
+            <input type="hidden" name="member_id" value="{{ m.id }}">
+            <button type="submit" class="secondary" data-busy="Removing..."
+                    style="background:#fff; color:var(--alert-ink); border:1px solid #e6c9c6; padding:6px 12px; font-size:13px;">
+              Remove
+            </button>
+          </form>
+          {% endif %}
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% if user.is_owner %}
+  <p class="muted" style="margin-top:12px;">Removing someone revokes their access to this account's documents.
+     Their own login still works — they simply go back to having an empty account of their own.</p>
+  {% endif %}
+</div>
+{% endblock %}

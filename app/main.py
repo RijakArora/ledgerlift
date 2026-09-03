@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from datetime import datetime
 
@@ -16,7 +17,8 @@ load_dotenv()
 
 from app.database import Base, engine, get_db          # noqa: E402
 from app.migrate import ensure_schema                  # noqa: E402
-from app.models import User, Document, LineItem, Client  # noqa: E402
+from app.models import User, Document, LineItem, Client, Invite, PasswordReset  # noqa: E402
+from app import accounts                               # noqa: E402
 from app.auth import hash_password, verify_password, current_user  # noqa: E402
 from app.extract import extract_document, ExtractionError, SUPPORTED_MIME  # noqa: E402
 from app.export import documents_to_csv                # noqa: E402
@@ -77,6 +79,18 @@ def _docs_this_month(db: Session, user_id: int) -> int:
     ) or 0
 
 
+def _account_quota(db: Session, user) -> int:
+    """Quota comes from the account owner's plan, never the member's own.
+
+    An invited member's User row defaults to plan="free", so reading their
+    plan would cap a paying account's colleague at the free limit.
+    """
+    if user.is_owner:
+        return user.quota
+    owner = accounts.owner_of(db, user.account_id)
+    return owner.quota if owner else user.quota
+
+
 def _ctx(request: Request, user, **kw) -> dict:
     return {"request": request, "user": user, "site": SITE, **kw}
 
@@ -104,7 +118,7 @@ def _sample_extraction() -> dict | None:
 def home(request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if user:
-        return RedirectResponse("/documents")
+        return RedirectResponse("/dashboard")
     return templates.TemplateResponse("landing.html", _ctx(request, None, proof=_sample_extraction()))
 
 
@@ -147,7 +161,7 @@ async def signup(request: Request, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     request.session["user_id"] = user.id
-    return RedirectResponse("/documents", status_code=303)
+    return RedirectResponse("/dashboard", status_code=303)
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -166,7 +180,7 @@ async def login(request: Request, db: Session = Depends(get_db)):
         return templates.TemplateResponse("login.html", _ctx(
             request, None, error="Incorrect email or password."))
     request.session["user_id"] = user.id
-    return RedirectResponse("/documents", status_code=303)
+    return RedirectResponse("/dashboard", status_code=303)
 
 
 @app.get("/logout")
@@ -181,19 +195,19 @@ def documents(request: Request, client_id: int | None = None, db: Session = Depe
     if not user:
         return RedirectResponse("/login")
 
-    q = db.query(Document).filter(Document.user_id == user.id)
+    q = db.query(Document).filter(Document.user_id == user.account_id)
     active_client = None
     if client_id:
         active_client = db.query(Client).filter(
-            Client.id == client_id, Client.user_id == user.id).first()
+            Client.id == client_id, Client.user_id == user.account_id).first()
         if active_client:
             q = q.filter(Document.client_id == active_client.id)
 
     docs = q.order_by(Document.uploaded_at.desc()).limit(300).all()
-    clients = db.query(Client).filter(Client.user_id == user.id).order_by(Client.name).all()
+    clients = db.query(Client).filter(Client.user_id == user.account_id).order_by(Client.name).all()
     return templates.TemplateResponse("documents.html", _ctx(
         request, user, documents=docs, clients=clients, active_client=active_client,
-        used=_docs_this_month(db, user.id), quota=user.quota))
+        used=_docs_this_month(db, user.account_id), quota=_account_quota(db, user)))
 
 
 @app.get("/documents/{doc_id}", response_class=HTMLResponse)
@@ -203,10 +217,10 @@ def document_detail(doc_id: int, request: Request, db: Session = Depends(get_db)
         return RedirectResponse("/login")
     # Scoped by user_id as well as id: without this, any logged-in user
     # could read another account's documents by guessing an id.
-    doc = db.query(Document).filter(Document.id == doc_id, Document.user_id == user.id).first()
+    doc = db.query(Document).filter(Document.id == doc_id, Document.user_id == user.account_id).first()
     if not doc:
         return RedirectResponse("/documents")
-    clients = db.query(Client).filter(Client.user_id == user.id).order_by(Client.name).all()
+    clients = db.query(Client).filter(Client.user_id == user.account_id).order_by(Client.name).all()
     return templates.TemplateResponse("document_detail.html",
                                       _ctx(request, user, doc=doc, clients=clients))
 
@@ -216,10 +230,10 @@ def upload_form(request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not user:
         return RedirectResponse("/login")
-    clients = db.query(Client).filter(Client.user_id == user.id).order_by(Client.name).all()
+    clients = db.query(Client).filter(Client.user_id == user.account_id).order_by(Client.name).all()
     return templates.TemplateResponse("upload.html", _ctx(
         request, user, clients=clients,
-        used=_docs_this_month(db, user.id), quota=user.quota))
+        used=_docs_this_month(db, user.account_id), quota=_account_quota(db, user)))
 
 
 def _find_duplicate(db: Session, user_id: int, vendor: str, invoice_no: str):
@@ -274,22 +288,22 @@ async def upload(request: Request, files: List[UploadFile] = File(...),
     client = None
     if raw_client_id:
         client = db.query(Client).filter(
-            Client.id == int(raw_client_id), Client.user_id == user.id).first()
+            Client.id == int(raw_client_id), Client.user_id == user.account_id).first()
 
     def render(**kw):
         return templates.TemplateResponse("upload.html", _ctx(
             request, user,
-            clients=db.query(Client).filter(Client.user_id == user.id).order_by(Client.name).all(),
-            used=_docs_this_month(db, user.id), quota=user.quota, **kw))
+            clients=db.query(Client).filter(Client.user_id == user.account_id).order_by(Client.name).all(),
+            used=_docs_this_month(db, user.account_id), quota=_account_quota(db, user), **kw))
 
     files = [f for f in files if f and f.filename]
     if not files:
         return render(error="No file selected.")
 
-    used = _docs_this_month(db, user.id)
-    remaining = user.quota - used
+    used = _docs_this_month(db, user.account_id)
+    remaining = _account_quota(db, user) - used
     if remaining <= 0:
-        return render(error=("You have used all " + str(user.quota) + " documents on the "
+        return render(error=("You have used all " + str(_account_quota(db, user)) + " documents on the "
                              + user.plan + " plan this month. Upgrade to keep going."))
 
     truncated = False
@@ -317,7 +331,7 @@ async def upload(request: Request, files: List[UploadFile] = File(...),
             failed.append(name + ": unsupported type " + (mime or "unknown"))
             continue
 
-        doc = Document(user_id=user.id, filename=name, mime_type=mime,
+        doc = Document(user_id=user.account_id, uploaded_by_id=user.id, filename=name, mime_type=mime,
                        client_id=client.id if client else None)
         try:
             data = extract_document(raw, mime)
@@ -330,7 +344,7 @@ async def upload(request: Request, files: List[UploadFile] = File(...),
             continue
 
         _persist_extraction(doc, data)
-        prior = _find_duplicate(db, user.id, doc.vendor_name, doc.invoice_number)
+        prior = _find_duplicate(db, user.account_id, doc.vendor_name, doc.invoice_number)
         if prior:
             doc.duplicate_of_id = prior.id
             dupes += 1
@@ -376,7 +390,7 @@ async def edit_document(doc_id: int, request: Request, db: Session = Depends(get
     if not user:
         return RedirectResponse("/login")
     doc = db.query(Document).filter(
-        Document.id == doc_id, Document.user_id == user.id).first()
+        Document.id == doc_id, Document.user_id == user.account_id).first()
     if not doc:
         return RedirectResponse("/documents")
 
@@ -420,13 +434,13 @@ def clients_page(request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not user:
         return RedirectResponse("/login")
-    clients = db.query(Client).filter(Client.user_id == user.id).order_by(Client.name).all()
+    clients = db.query(Client).filter(Client.user_id == user.account_id).order_by(Client.name).all()
     counts = {}
     for c in clients:
         counts[c.id] = db.query(func.count(Document.id)).filter(
             Document.client_id == c.id).scalar() or 0
     unassigned = db.query(func.count(Document.id)).filter(
-        Document.user_id == user.id, Document.client_id.is_(None)).scalar() or 0
+        Document.user_id == user.account_id, Document.client_id.is_(None)).scalar() or 0
     return templates.TemplateResponse("clients.html", _ctx(
         request, user, clients=clients, counts=counts, unassigned=unassigned))
 
@@ -440,9 +454,9 @@ async def create_client(request: Request, db: Session = Depends(get_db)):
     name = (form.get("name") or "").strip()
     if name:
         exists = db.query(Client).filter(
-            Client.user_id == user.id, Client.name == name).first()
+            Client.user_id == user.account_id, Client.name == name).first()
         if not exists:
-            db.add(Client(user_id=user.id, name=name))
+            db.add(Client(user_id=user.account_id, name=name))
             db.commit()
     return RedirectResponse("/clients", status_code=303)
 
@@ -453,13 +467,13 @@ async def assign_client(doc_id: int, request: Request, db: Session = Depends(get
     if not user:
         return RedirectResponse("/login")
     doc = db.query(Document).filter(
-        Document.id == doc_id, Document.user_id == user.id).first()
+        Document.id == doc_id, Document.user_id == user.account_id).first()
     if not doc:
         return RedirectResponse("/documents")
     form = await request.form()
     cid = form.get("client_id") or ""
     if cid:
-        c = db.query(Client).filter(Client.id == int(cid), Client.user_id == user.id).first()
+        c = db.query(Client).filter(Client.id == int(cid), Client.user_id == user.account_id).first()
         doc.client_id = c.id if c else None
     else:
         doc.client_id = None
@@ -474,10 +488,10 @@ def export_csv(request: Request, shape: str = "summary", client_id: int | None =
     if not user:
         return RedirectResponse("/login")
 
-    q = db.query(Document).filter(Document.user_id == user.id, Document.status == "OK")
+    q = db.query(Document).filter(Document.user_id == user.account_id, Document.status == "OK")
     label = "all"
     if client_id:
-        c = db.query(Client).filter(Client.id == client_id, Client.user_id == user.id).first()
+        c = db.query(Client).filter(Client.id == client_id, Client.user_id == user.account_id).first()
         if c:
             q = q.filter(Document.client_id == c.id)
             label = "".join(ch if ch.isalnum() else "-" for ch in c.name).strip("-").lower() or "client"
@@ -489,6 +503,219 @@ def export_csv(request: Request, shape: str = "summary", client_id: int | None =
     fn = "ledgerlift-" + label + "-" + shape + "-" + datetime.utcnow().strftime("%Y%m%d") + ".csv"
     return PlainTextResponse(csv_text, media_type="text/csv", headers={
         "Content-Disposition": 'attachment; filename="' + fn + '"'})
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard(request: Request, db: Session = Depends(get_db)):
+    """The working view a bookkeeper opens each day.
+
+    Built around one question - "what needs my attention?" - rather than
+    vanity totals. Extraction is imperfect by design (blank beats a
+    guess), so the useful thing is surfacing the handful of documents
+    worth looking at instead of making someone re-check all of them.
+    """
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse("/login")
+
+    acct = user.account_id
+    base = db.query(Document).filter(Document.user_id == acct)
+
+    used = _docs_this_month(db, acct)
+    quota = _account_quota(db, user)
+
+    recent = base.order_by(Document.uploaded_at.desc()).limit(8).all()
+    ok_docs = base.filter(Document.status == "OK").all()
+
+    failed = base.filter(Document.status == "FAILED").order_by(
+        Document.uploaded_at.desc()).limit(10).all()
+    duplicates = [d for d in ok_docs if d.duplicate_of_id]
+    incomplete = [d for d in ok_docs if d.missing_key_fields]
+
+    # Totals by currency - summing mixed currencies would be nonsense.
+    totals = {}
+    for d in ok_docs:
+        if d.total is None:
+            continue
+        cur = d.currency or "?"
+        totals[cur] = totals.get(cur, 0.0) + d.total
+
+    clients = db.query(Client).filter(Client.user_id == acct).order_by(Client.name).all()
+    per_client = []
+    for c in clients:
+        docs = [d for d in ok_docs if d.client_id == c.id]
+        c_totals = {}
+        for d in docs:
+            if d.total is not None:
+                c_totals[d.currency or "?"] = c_totals.get(d.currency or "?", 0.0) + d.total
+        per_client.append({"client": c, "count": len(docs), "totals": c_totals})
+    unassigned_count = len([d for d in ok_docs if d.client_id is None])
+
+    return templates.TemplateResponse("dashboard.html", _ctx(
+        request, user,
+        used=used, quota=quota,
+        total_docs=len(ok_docs),
+        recent=recent, failed=failed, duplicates=duplicates[:10],
+        incomplete=incomplete[:10],
+        totals=totals, per_client=per_client, unassigned_count=unassigned_count,
+        team=accounts.members(db, acct)))
+
+
+@app.get("/team", response_class=HTMLResponse)
+def team_page(request: Request, db: Session = Depends(get_db)):
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse("/login")
+    acct = user.account_id
+    pending = (db.query(Invite)
+               .filter(Invite.account_owner_id == acct, Invite.accepted_at.is_(None))
+               .order_by(Invite.created_at.desc()).all())
+    return templates.TemplateResponse("team.html", _ctx(
+        request, user,
+        members=accounts.members(db, acct),
+        owner=accounts.owner_of(db, acct),
+        pending=[i for i in pending if i.is_usable],
+        base_url=str(request.base_url).rstrip("/")))
+
+
+@app.post("/team/invite")
+async def team_invite(request: Request, db: Session = Depends(get_db)):
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse("/login")
+    if not user.is_owner:
+        # Only the account owner hands out access to their financial records.
+        return RedirectResponse("/team", status_code=303)
+    form = await request.form()
+    accounts.create_invite(db, user.account_id, form.get("email") or "")
+    return RedirectResponse("/team", status_code=303)
+
+
+@app.post("/team/revoke")
+async def team_revoke(request: Request, db: Session = Depends(get_db)):
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse("/login")
+    if not user.is_owner:
+        return RedirectResponse("/team", status_code=303)
+    form = await request.form()
+    member_id = form.get("member_id")
+    if member_id:
+        accounts.revoke_member(db, user.account_id, int(member_id))
+    return RedirectResponse("/team", status_code=303)
+
+
+@app.get("/join/{token}", response_class=HTMLResponse)
+def join_form(token: str, request: Request, db: Session = Depends(get_db)):
+    invite = accounts.usable_invite(db, token)
+    if not invite:
+        return templates.TemplateResponse("join.html", _ctx(
+            request, None, invalid=True))
+    owner = accounts.owner_of(db, invite.account_owner_id)
+    user = current_user(request, db)
+    return templates.TemplateResponse("join.html", _ctx(
+        request, user, token=token, invite=invite, owner=owner))
+
+
+@app.post("/join/{token}", response_class=HTMLResponse)
+async def join_accept(token: str, request: Request, db: Session = Depends(get_db)):
+    invite = accounts.usable_invite(db, token)
+    if not invite:
+        return templates.TemplateResponse("join.html", _ctx(request, None, invalid=True))
+
+    user = current_user(request, db)
+    if user:
+        # Already signed in - just attach this account.
+        accounts.accept_invite(db, invite, user)
+        return RedirectResponse("/dashboard", status_code=303)
+
+    form = await request.form()
+    name = (form.get("name") or "").strip()
+    email = (form.get("email") or "").strip().lower()
+    password = form.get("password") or ""
+    owner = accounts.owner_of(db, invite.account_owner_id)
+
+    def bad(msg):
+        return templates.TemplateResponse("join.html", _ctx(
+            request, None, token=token, invite=invite, owner=owner, error=msg))
+
+    if not email or len(password) < 8:
+        return bad("Email and a password of at least 8 characters are required.")
+
+    existing = db.query(User).filter(User.email == email).first()
+    if existing:
+        if not verify_password(password, existing.password_hash):
+            return bad("An account with that email exists. Enter its password to join.")
+        accounts.accept_invite(db, invite, existing)
+        request.session["user_id"] = existing.id
+        return RedirectResponse("/dashboard", status_code=303)
+
+    new_user = User(email=email, password_hash=hash_password(password), name=name,
+                    account_owner_id=invite.account_owner_id)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    invite.accepted_at = datetime.utcnow()
+    db.commit()
+    request.session["user_id"] = new_user.id
+    return RedirectResponse("/dashboard", status_code=303)
+
+
+@app.get("/forgot-password", response_class=HTMLResponse)
+def forgot_form(request: Request):
+    return templates.TemplateResponse("forgot.html", _ctx(request, None))
+
+
+@app.post("/forgot-password", response_class=HTMLResponse)
+async def forgot_submit(request: Request, db: Session = Depends(get_db)):
+    """Creates a reset token.
+
+    There is no transactional email provider wired up yet, so the link
+    cannot be emailed. Rather than pretend otherwise, the page says so
+    plainly and tells the user to contact support - and the link is
+    written to the server log so support can hand it over after checking
+    who is asking. The same response is returned whether or not the
+    address exists, so this cannot be used to discover who has an account.
+    """
+    form = await request.form()
+    email = (form.get("email") or "").strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    if user:
+        pr = PasswordReset(user_id=user.id, token=PasswordReset.new_token())
+        db.add(pr)
+        db.commit()
+        link = str(request.base_url).rstrip("/") + "/reset-password/" + pr.token
+        logging.getLogger("ledgerlift.reset").warning(
+            "PASSWORD RESET requested for %s -> %s", email, link)
+    return templates.TemplateResponse("forgot.html", _ctx(request, None, submitted=True))
+
+
+@app.get("/reset-password/{token}", response_class=HTMLResponse)
+def reset_form(token: str, request: Request, db: Session = Depends(get_db)):
+    pr = db.query(PasswordReset).filter(PasswordReset.token == token).first()
+    if not pr or not pr.is_usable:
+        return templates.TemplateResponse("reset.html", _ctx(request, None, invalid=True))
+    return templates.TemplateResponse("reset.html", _ctx(request, None, token=token))
+
+
+@app.post("/reset-password/{token}", response_class=HTMLResponse)
+async def reset_submit(token: str, request: Request, db: Session = Depends(get_db)):
+    pr = db.query(PasswordReset).filter(PasswordReset.token == token).first()
+    if not pr or not pr.is_usable:
+        return templates.TemplateResponse("reset.html", _ctx(request, None, invalid=True))
+    form = await request.form()
+    password = form.get("password") or ""
+    if len(password) < 8:
+        return templates.TemplateResponse("reset.html", _ctx(
+            request, None, token=token, error="Password must be at least 8 characters."))
+    user = db.query(User).filter(User.id == pr.user_id).first()
+    if not user:
+        return templates.TemplateResponse("reset.html", _ctx(request, None, invalid=True))
+    user.password_hash = hash_password(password)
+    pr.used_at = datetime.utcnow()
+    db.commit()
+    request.session["user_id"] = user.id
+    return RedirectResponse("/dashboard", status_code=303)
 
 
 @app.get("/sample-invoice.png")

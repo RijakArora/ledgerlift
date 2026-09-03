@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Join an account - Ledgerlift{% endblock %}
+{% block content %}
+<div class="card" style="max-width:440px;">
+{% if invalid %}
+  <h2>This invite link isn't valid</h2>
+  <p class="muted">It may have already been used, or it expired (links last 14 days).
+     Ask whoever invited you to send a fresh one.</p>
+  <a class="btn secondary" href="/">Go to the homepage</a>
+{% elif user %}
+  <h2>Join {{ owner.name or owner.email }}'s account?</h2>
+  <p class="muted">You're signed in as {{ user.email }}. Accepting gives you access to their
+     documents and clients, sharing the same monthly quota.</p>
+  <form method="post" action="/join/{{ token }}">
+    <button type="submit" data-busy="Joining...">Accept invite</button>
+  </form>
+{% else %}
+  <h2>You've been invited</h2>
+  <p class="muted" style="margin-top:-4px;">
+    {{ owner.name or owner.email }} wants to share their Ledgerlift account with you.
+    You'll see the same documents and clients, and there's no extra cost.
+  </p>
+  {% if error %}<div class="notice error">{{ error }}</div>{% endif %}
+  <form class="simple" method="post" action="/join/{{ token }}">
+    <div>
+      <label for="name">Your name <span class="muted">(optional)</span></label>
+      <input id="name" type="text" name="name">
+    </div>
+    <div>
+      <label for="email">Email</label>
+      <input id="email" type="email" name="email"
+             value="{{ invite.email or '' }}" required>
+    </div>
+    <div>
+      <label for="password">Password</label>
+      <input id="password" type="password" name="password" required minlength="8"
+             placeholder="At least 8 characters">
+      <p class="muted" style="margin:6px 0 0;">Already have a Ledgerlift login? Use that email and
+         password and we'll simply add this account to it.</p>
+    </div>
+    <button type="submit" data-busy="Joining...">Join account</button>
+  </form>
+{% endif %}
+</div>
+{% endblock %}

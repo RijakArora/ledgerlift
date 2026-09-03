@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Set a new password - Ledgerlift{% endblock %}
+{% block content %}
+<div class="card" style="max-width:440px;">
+{% if invalid %}
+  <h2>This reset link isn't valid</h2>
+  <p class="muted">Reset links work once and expire after two hours.
+     <a href="/forgot-password">Start again</a> to get a new one.</p>
+{% else %}
+  <h2>Set a new password</h2>
+  {% if error %}<div class="notice error">{{ error }}</div>{% endif %}
+  <form class="simple" method="post" action="/reset-password/{{ token }}">
+    <div>
+      <label for="password">New password</label>
+      <input id="password" type="password" name="password" required minlength="8"
+             placeholder="At least 8 characters">
+    </div>
+    <button type="submit" data-busy="Saving...">Set password and sign in</button>
+  </form>
+{% endif %}
+</div>
+{% endblock %}

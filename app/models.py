@@ -1,13 +1,16 @@
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
 
-# Monthly document quotas per plan. Flat-rate: the quota is per account,
-# never per seat or per client - that's the deliberate wedge against
-# per-seat incumbents. Adding a client must never raise the bill.
+# Monthly document quotas per plan. Flat-rate: the quota belongs to the
+# account, never to a seat or a client. Inviting a colleague, a client or
+# an accountant must never raise the bill - that is the whole wedge
+# against per-seat incumbents, so it has to be true in the code, not just
+# in the marketing copy.
 PLAN_QUOTAS = {"free": 150, "low": 600, "mid": 2000}
 
 
@@ -21,27 +24,87 @@ class User(Base):
     plan = Column(String, default="free")
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    documents = relationship("Document", back_populates="user")
-    clients = relationship("Client", back_populates="user", cascade="all, delete-orphan")
+    # NULL means this user owns their own account. Set means they were
+    # invited into someone else's account and share all of its data and
+    # its quota. Kept as a self-FK rather than a separate Account table
+    # so existing single-user rows stay valid with no data migration.
+    account_owner_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+
+    @property
+    def account_id(self) -> int:
+        """The account whose data this user sees. Everything is scoped to
+        this, never to user.id directly."""
+        return self.account_owner_id or self.id
+
+    @property
+    def is_owner(self) -> bool:
+        return self.account_owner_id is None
 
     @property
     def quota(self) -> int:
         return PLAN_QUOTAS.get(self.plan, PLAN_QUOTAS["free"])
 
 
-class Client(Base):
-    """A book the user keeps. The target customer is a solo bookkeeper
-    running several clients' books, and they need those kept apart -
-    both on screen and at export time."""
-    __tablename__ = "clients"
+class Invite(Base):
+    """A pending invitation to share an account.
+
+    Single-use and time-limited: an invite link that works forever is a
+    standing key to someone's financial records.
+    """
+    __tablename__ = "invites"
+
+    id = Column(Integer, primary_key=True)
+    account_owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    email = Column(String, default="")
+    token = Column(String, unique=True, index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    accepted_at = Column(DateTime, nullable=True)
+
+    @staticmethod
+    def new_token() -> str:
+        return secrets.token_urlsafe(32)
+
+    @property
+    def is_expired(self) -> bool:
+        return datetime.utcnow() > (self.created_at or datetime.utcnow()) + timedelta(days=14)
+
+    @property
+    def is_usable(self) -> bool:
+        return self.accepted_at is None and not self.is_expired
+
+
+class PasswordReset(Base):
+    """Single-use, short-lived password reset token."""
+    __tablename__ = "password_resets"
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String, unique=True, index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    used_at = Column(DateTime, nullable=True)
+
+    @staticmethod
+    def new_token() -> str:
+        return secrets.token_urlsafe(32)
+
+    @property
+    def is_usable(self) -> bool:
+        if self.used_at is not None:
+            return False
+        return datetime.utcnow() < (self.created_at or datetime.utcnow()) + timedelta(hours=2)
+
+
+class Client(Base):
+    """A set of books the account keeps. The target customer is a solo
+    bookkeeper running several clients, who needs them kept apart both on
+    screen and at export time."""
+    __tablename__ = "clients"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # account id
     name = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    user = relationship("User", back_populates="clients")
-    documents = relationship("Document", back_populates="client")
 
 
 class Document(Base):
@@ -53,7 +116,10 @@ class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True)
+    # This is the ACCOUNT id, not the individual uploader - so everyone
+    # invited into an account sees the same documents.
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    uploaded_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=True, index=True)
     filename = Column(String, default="")
     mime_type = Column(String, default="")
@@ -76,8 +142,8 @@ class Document(Base):
 
     raw_json = Column(Text, default="")
 
-    # Set when a human corrects extracted values. Shown in the UI so an
-    # edited record is never mistaken for raw model output.
+    # Set when a human corrects extracted values, so an edited record is
+    # never mistaken for raw model output.
     edited_at = Column(DateTime, nullable=True)
 
     # Points at an earlier document with the same vendor + invoice number.
@@ -85,10 +151,23 @@ class Document(Base):
     # recur, and silently refusing an upload would be worse than flagging.
     duplicate_of_id = Column(Integer, ForeignKey("documents.id"), nullable=True)
 
-    user = relationship("User", back_populates="documents")
-    client = relationship("Client", back_populates="documents")
+    client = relationship("Client", backref="documents")
     line_items = relationship("LineItem", back_populates="document",
                               cascade="all, delete-orphan")
+
+    @property
+    def missing_key_fields(self) -> list:
+        """Fields a bookkeeper needs that came back empty. Drives the
+        'needs attention' list so they review a handful of documents
+        rather than re-checking every one."""
+        missing = []
+        if not self.vendor_name:
+            missing.append("vendor")
+        if self.total is None:
+            missing.append("total")
+        if not self.invoice_date:
+            missing.append("date")
+        return missing
 
 
 class LineItem(Base):

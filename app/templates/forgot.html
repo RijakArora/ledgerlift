@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Forgot password - Ledgerlift{% endblock %}
+{% block content %}
+<div class="card" style="max-width:460px;">
+  <h2>Forgot your password?</h2>
+{% if submitted %}
+  <div class="notice ok">If that email has an account, a reset link has been generated.</div>
+  <p><strong>Here's the honest bit:</strong> Ledgerlift doesn't have an email service wired up yet,
+     so we can't send that link to you automatically.</p>
+  <p>Email <a href="mailto:{{ site.support_email }}">{{ site.support_email }}</a> from the address on your
+     account and the link will be sent back to you once it's confirmed it's really you. It's usually quick —
+     there's one person reading that inbox.</p>
+  <p class="muted">Reset links expire after two hours and work once.</p>
+  <a class="btn secondary" href="/login">Back to login</a>
+{% else %}
+  <p class="muted" style="margin-top:-4px;">Enter your account email and we'll start a reset.</p>
+  <div class="notice info">
+    Heads up: there's no automated reset email yet, so this step is finished by a human.
+    You'll be told exactly what to do next.
+  </div>
+  <form class="simple" method="post" action="/forgot-password">
+    <div>
+      <label for="email">Email</label>
+      <input id="email" type="email" name="email" required placeholder="you@example.com">
+    </div>
+    <button type="submit" data-busy="Working...">Start password reset</button>
+  </form>
+  <p class="muted"><a href="/login">Back to login</a></p>
+{% endif %}
+</div>
+{% endblock %}

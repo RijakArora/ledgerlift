@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Ledgerlift{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:14px; margin-bottom:20px;">
+  <div>
+    <h1 style="font-size:26px; margin:0 0 4px;">
+      {% if user.name %}Hello, {{ user.name.split()[0] }}{% else %}Dashboard{% endif %}
+    </h1>
+    <p class="muted" style="margin:0;">
+      {{ total_docs }} document{{ 's' if total_docs != 1 else '' }} extracted
+      {% if team|length > 1 %}· shared with {{ team|length - 1 }} other{{ 's' if team|length > 2 else '' }}{% endif %}
+    </p>
+  </div>
+  <div class="btn-row">
+    <a class="btn secondary" href="/documents">All documents</a>
+    <a class="btn" href="/upload">Upload</a>
+  </div>
+</div>
+
+{% if total_docs == 0 and not failed %}
+<div class="card">
+  <h2>Let's get your first document in 👋</h2>
+  <ul class="steps" style="margin-top:14px;">
+    <li><span class="num">1</span><span>Grab an invoice or receipt — PDF, scan, or a phone photo. You can drop in a whole batch at once.</span></li>
+    <li><span class="num">2</span><span>Nothing to hand? <a href="/sample-invoice.png">Download our sample invoice</a>.</span></li>
+    <li><span class="num">3</span><span><a href="/upload">Upload it</a> — vendor, dates, tax, totals and line items come back in seconds.</span></li>
+  </ul>
+  <div style="margin-top:18px;"><a class="btn" href="/upload">Upload your first document →</a></div>
+</div>
+{% else %}
+
+<!-- stat row -->
+<div class="stat-row">
+  <div class="stat">
+    <span class="stat-label">This month</span>
+    <span class="stat-value">{{ used }}<span class="stat-sub">/ {{ quota }}</span></span>
+    <div class="quota-bar"><span style="width: {{ (100 if used >= quota else (used / quota * 100)) | round(1) }}%;"></span></div>
+  </div>
+  {% for cur, amt in totals.items() %}
+  <div class="stat">
+    <span class="stat-label">Total extracted ({{ cur }})</span>
+    <span class="stat-value">{{ "{:,.2f}".format(amt) }}</span>
+  </div>
+  {% endfor %}
+  <div class="stat">
+    <span class="stat-label">Needs attention</span>
+    <span class="stat-value {% if (failed|length + duplicates|length + incomplete|length) %}warn{% endif %}">
+      {{ failed|length + duplicates|length + incomplete|length }}
+    </span>
+  </div>
+</div>
+
+{% if failed or duplicates or incomplete %}
+<div class="card">
+  <h3>Needs your attention</h3>
+  <p class="muted" style="margin-top:-6px;">Rather than re-checking every document, these are the ones worth a look.</p>
+
+  {% if failed %}
+  <div class="attn">
+    <span class="badge badge-fail">{{ failed|length }} failed</span>
+    <span class="muted">couldn't be read at all</span>
+    <ul class="attn-list">
+      {% for d in failed %}
+      <li><a href="/documents/{{ d.id }}">{{ d.filename }}</a>
+          <span class="muted">— {{ d.error_message[:90] }}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if incomplete %}
+  <div class="attn">
+    <span class="badge badge-warn">{{ incomplete|length }} incomplete</span>
+    <span class="muted">a field we'd normally expect came back blank — fill it in yourself</span>
+    <ul class="attn-list">
+      {% for d in incomplete %}
+      <li><a href="/documents/{{ d.id }}">{{ d.vendor_name or d.filename }}</a>
+          <span class="muted">— missing {{ d.missing_key_fields|join(", ") }}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if duplicates %}
+  <div class="attn">
+    <span class="badge badge-warn">{{ duplicates|length }} possible duplicate{{ 's' if duplicates|length != 1 else '' }}</span>
+    <span class="muted">same vendor and invoice number as an earlier upload</span>
+    <ul class="attn-list">
+      {% for d in duplicates %}
+      <li><a href="/documents/{{ d.id }}">{{ d.vendor_name or d.filename }}</a>
+          <span class="muted">— {{ d.invoice_number }}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<div class="card">
+  <h3>Nothing needs attention <span class="badge badge-ok">all clear</span></h3>
+  <p class="muted" style="margin-bottom:0;">Every document read cleanly, with no blanks in the key fields and no duplicates.</p>
+</div>
+{% endif %}
+
+<div class="grid-2">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 style="margin:0;">Recent</h3>
+      <a class="muted" href="/documents">See all →</a>
+    </div>
+    <div class="table-scroll">
+      <table>
+        {% for d in recent %}
+        <tr>
+          <td><a href="/documents/{{ d.id }}">{{ d.vendor_name or d.filename }}</a>
+            {% if d.status != "OK" %}<span class="badge badge-fail">failed</span>{% endif %}
+            {% if d.duplicate_of_id %}<span class="badge badge-warn">dup?</span>{% endif %}
+          </td>
+          <td class="muted">{{ d.invoice_date or d.uploaded_at.strftime("%Y-%m-%d") }}</td>
+          <td class="num">{% if d.total is not none %}{{ d.currency }} {{ "%.2f"|format(d.total) }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 style="margin:0;">By client</h3>
+      <a class="muted" href="/clients">Manage →</a>
+    </div>
+    {% if per_client %}
+    <div class="table-scroll">
+      <table>
+        {% for row in per_client %}
+        <tr>
+          <td><a href="/documents?client_id={{ row.client.id }}">{{ row.client.name }}</a></td>
+          <td class="num muted">{{ row.count }} doc{{ 's' if row.count != 1 else '' }}</td>
+          <td class="num">
+            {% for cur, amt in row.totals.items() %}{{ cur }} {{ "{:,.2f}".format(amt) }}{% if not loop.last %}<br>{% endif %}{% else %}—{% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% if unassigned_count %}
+        <tr><td class="muted">Unassigned</td><td class="num muted">{{ unassigned_count }}</td><td></td></tr>
+        {% endif %}
+      </table>
+    </div>
+    {% else %}
+    <p class="muted">Keeping books for more than one business?
+       <a href="/clients">Set up clients</a> to keep them separate and export per client.
+       It never costs more.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h3>Export</h3>
+  <p class="muted" style="margin-top:-6px;">Everything extracted, in the shape you need.</p>
+  <div class="btn-row">
+    <a class="btn secondary" href="/export.csv?shape=summary">Summary CSV</a>
+    <a class="btn secondary" href="/export.csv?shape=line_items">Line items CSV</a>
+    <a class="btn secondary" href="/export.csv?shape=xero">Xero</a>
+    <a class="btn secondary" href="/export.csv?shape=quickbooks">QuickBooks</a>
+  </div>
+  <p class="muted" style="margin-top:12px;">Xero and QuickBooks column names follow their usual templates,
+     but those vary by region — worth comparing against a template from your own account before the first import.</p>
+</div>
+{% endif %}
+{% endblock %}

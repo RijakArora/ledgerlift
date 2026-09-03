@@ -21,6 +21,10 @@ EXPECTED_COLUMNS = {
         "client_id": "INTEGER",
         "edited_at": "TIMESTAMP",
         "duplicate_of_id": "INTEGER",
+        "uploaded_by_id": "INTEGER",
+    },
+    "users": {
+        "account_owner_id": "INTEGER",
     },
 }
 

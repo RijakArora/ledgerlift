@@ -133,6 +133,30 @@
 
   .shot { width:100%; border:1px solid var(--line); border-radius:9px; display:block; box-shadow:var(--shadow-sm); }
 
+
+  header nav a.muted-link { color:var(--ink-3); font-size:13.5px; }
+
+  /* dashboard stat cards */
+  .stat-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px,1fr)); gap:16px; margin-bottom:22px; }
+  .stat {
+    background:var(--card); border:1px solid var(--line); border-radius:var(--r);
+    padding:18px 20px; box-shadow:var(--shadow-sm);
+  }
+  .stat-label { display:block; font-size:12px; font-weight:650; letter-spacing:.05em;
+                text-transform:uppercase; color:var(--ink-3); margin-bottom:8px; }
+  .stat-value { display:block; font-size:27px; font-weight:680; letter-spacing:-.02em;
+                font-variant-numeric:tabular-nums; line-height:1.1; }
+  .stat-value.warn { color:var(--warn-ink); }
+  .stat-sub { font-size:15px; font-weight:500; color:var(--ink-3); margin-left:4px; }
+
+  .attn { padding:14px 0; border-top:1px solid var(--line-soft); }
+  .attn:first-of-type { border-top:none; padding-top:6px; }
+  .attn-list { margin:10px 0 0; padding-left:18px; font-size:14px; }
+  .attn-list li { margin-bottom:5px; }
+
+  select { padding:11px 13px; font-size:15px; border-radius:9px;
+           border:1px solid #d9dad4; background:#fff; color:var(--ink); }
+
   /* legal pages */
   .legal h1 { font-size:29px; margin-bottom:6px; }
   .legal h2 { font-size:16.5px; margin-top:30px; }
@@ -174,11 +198,12 @@
     <a class="brand" href="/"><span class="mark"></span> Ledgerlift</a>
     <nav>
       {% if user %}
-        <span class="who">{{ user.email }}</span>
+        <a href="/dashboard">Dashboard</a>
         <a href="/documents">Documents</a>
-      <a href="/clients">Clients</a>
-        <a href="/upload">Upload</a>
-        <a href="/logout">Log out</a>
+        <a href="/clients">Clients</a>
+        <a href="/team">Sharing</a>
+        <a class="cta" href="/upload">Upload</a>
+        <a class="muted-link" href="/logout">Log out</a>
       {% else %}
         <a href="/login">Log in</a>
         <a class="cta" href="/signup">Start free</a>
