@@ -2,12 +2,12 @@
 {% block title %}Documents - Ledgerlift{% endblock %}
 {% block content %}
 
-{% if not documents %}
+{% if not documents and not active_client %}
 <div class="card">
   <h2>Welcome{% if user.name %}, {{ user.name }}{% endif %} 👋</h2>
   <p class="muted">Three steps to your first extraction.</p>
   <ul class="steps">
-    <li><span class="num">1</span><span>Grab an invoice or receipt - a PDF, a scan, or a photo taken on your phone.</span></li>
+    <li><span class="num">1</span><span>Grab an invoice or receipt - a PDF, a scan, or a photo taken on your phone. You can upload a whole batch at once.</span></li>
     <li><span class="num">2</span><span>Don't have one to hand? <a href="/sample-invoice.png">Download our sample invoice</a> and use that.</span></li>
     <li><span class="num">3</span><span><a href="/upload">Upload it</a> - you'll get vendor, dates, totals, tax and line items back in a few seconds.</span></li>
   </ul>
@@ -16,17 +16,38 @@
 {% else %}
 
 <div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
     <div>
-      <h3 style="margin-bottom:4px;">Documents</h3>
+      <h3 style="margin-bottom:4px;">
+        {% if active_client %}{{ active_client.name }}{% else %}All documents{% endif %}
+      </h3>
       <span class="muted">{{ used }} of {{ quota }} used this month
         <span class="badge badge-plan">{{ user.plan }}</span></span>
     </div>
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <a class="btn secondary" href="/export.csv?shape=summary">Export CSV</a>
-      <a class="btn secondary" href="/export.csv?shape=line_items">Export line items</a>
+    <div class="btn-row">
+      <a class="btn secondary" href="/clients">Clients</a>
       <a class="btn" href="/upload">Upload</a>
     </div>
+  </div>
+
+  {% if clients %}
+  <div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <span class="muted">Filter:</span>
+    <a class="btn secondary" style="padding:6px 12px; font-size:13.5px;" href="/documents">All</a>
+    {% for c in clients %}
+    <a class="btn secondary" style="padding:6px 12px; font-size:13.5px;{% if active_client and active_client.id == c.id %} border-color:var(--accent); color:var(--accent);{% endif %}"
+       href="/documents?client_id={{ c.id }}">{{ c.name }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <span class="muted">Export{% if active_client %} ({{ active_client.name }}){% endif %}:</span>
+    {% set q = '&client_id=' ~ active_client.id if active_client else '' %}
+    <a class="btn secondary" style="padding:6px 12px; font-size:13.5px;" href="/export.csv?shape=summary{{ q }}">Summary</a>
+    <a class="btn secondary" style="padding:6px 12px; font-size:13.5px;" href="/export.csv?shape=line_items{{ q }}">Line items</a>
+    <a class="btn secondary" style="padding:6px 12px; font-size:13.5px;" href="/export.csv?shape=xero{{ q }}">Xero</a>
+    <a class="btn secondary" style="padding:6px 12px; font-size:13.5px;" href="/export.csv?shape=quickbooks{{ q }}">QuickBooks</a>
   </div>
 </div>
 
@@ -34,21 +55,26 @@
   <div class="table-scroll">
     <table>
       <tr>
-        <th>Uploaded</th><th>Vendor</th><th>Invoice #</th><th>Date</th>
-        <th class="num">Total</th><th>Status</th>
+        <th>Uploaded</th><th>Vendor</th>{% if not active_client %}<th>Client</th>{% endif %}
+        <th>Invoice #</th><th>Date</th><th class="num">Total</th><th>Status</th>
       </tr>
       {% for d in documents %}
       <tr>
         <td>{{ d.uploaded_at.strftime("%Y-%m-%d %H:%M") }}</td>
         <td><a href="/documents/{{ d.id }}">{{ d.vendor_name or d.filename }}</a></td>
-        <td>{{ d.invoice_number or "-" }}</td>
-        <td>{{ d.invoice_date or "-" }}</td>
-        <td class="num">{% if d.total is not none %}{{ d.currency }} {{ "%.2f"|format(d.total) }}{% else %}-{% endif %}</td>
+        {% if not active_client %}<td class="muted">{{ d.client.name if d.client else "—" }}</td>{% endif %}
+        <td>{{ d.invoice_number or "—" }}</td>
+        <td>{{ d.invoice_date or "—" }}</td>
+        <td class="num">{% if d.total is not none %}{{ d.currency }} {{ "%.2f"|format(d.total) }}{% else %}—{% endif %}</td>
         <td>
           {% if d.status == "OK" %}<span class="badge badge-ok">OK</span>
           {% else %}<span class="badge badge-fail">failed</span>{% endif %}
+          {% if d.duplicate_of_id %}<span class="badge badge-warn" title="Same vendor and invoice number as an earlier upload">dup?</span>{% endif %}
+          {% if d.edited_at %}<span class="badge badge-plan" title="Corrected by hand">edited</span>{% endif %}
         </td>
       </tr>
+      {% else %}
+      <tr><td colspan="7" class="muted">No documents for this client yet. <a href="/upload">Upload some</a>.</td></tr>
       {% endfor %}
     </table>
   </div>

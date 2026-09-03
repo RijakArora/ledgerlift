@@ -9,55 +9,106 @@
   <h2>Extraction failed</h2>
   <div class="notice error">{{ doc.error_message }}</div>
   <p class="muted">File: {{ doc.filename }} &middot; uploaded {{ doc.uploaded_at.strftime("%Y-%m-%d %H:%M") }}</p>
-  <p class="muted">This document didn't count toward a successful extraction, but the attempt is kept here so nothing silently disappears.</p>
+  <p class="muted">The attempt is kept here so nothing silently disappears.</p>
 </div>
 {% else %}
+
+{% if doc.duplicate_of_id %}
+<div class="notice warn">
+  <strong>Possible duplicate.</strong> An earlier document has the same vendor and invoice number -
+  <a href="/documents/{{ doc.duplicate_of_id }}">see it</a>. This is only a flag; if they're genuinely
+  different documents, ignore it.
+</div>
+{% endif %}
 
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
     <div>
       <h2 style="margin-bottom:2px;">{{ doc.vendor_name or "Unknown vendor" }}</h2>
       <span class="muted">{{ doc.filename }} &middot; {{ doc.document_type or "document" }}
-        &middot; uploaded {{ doc.uploaded_at.strftime("%Y-%m-%d %H:%M") }}</span>
+        &middot; uploaded {{ doc.uploaded_at.strftime("%Y-%m-%d %H:%M") }}
+        {% if doc.client %}&middot; {{ doc.client.name }}{% endif %}</span>
     </div>
-    <span class="badge badge-ok">extracted</span>
+    <div style="display:flex; gap:6px; align-items:center;">
+      {% if doc.edited_at %}<span class="badge badge-plan">edited by hand</span>{% endif %}
+      <span class="badge badge-ok">extracted</span>
+    </div>
   </div>
 
-  <dl class="kv" style="margin-top:20px;">
-    {% if doc.vendor_address %}<dt>Vendor address</dt><dd>{{ doc.vendor_address }}</dd>{% endif %}
-    <dt>Invoice number</dt><dd>{{ doc.invoice_number or "—" }}</dd>
-    <dt>Invoice date</dt><dd>{{ doc.invoice_date or "—" }}</dd>
-    <dt>Due date</dt><dd>{{ doc.due_date or "—" }}</dd>
-    <dt>Subtotal</dt><dd>{% if doc.subtotal is not none %}{{ doc.currency }} {{ "%.2f"|format(doc.subtotal) }}{% else %}—{% endif %}</dd>
-    <dt>Tax</dt><dd>{% if doc.tax is not none %}{{ doc.currency }} {{ "%.2f"|format(doc.tax) }}{% else %}—{% endif %}</dd>
-    <dt>Shipping</dt><dd>{% if doc.shipping is not none %}{{ doc.currency }} {{ "%.2f"|format(doc.shipping) }}{% else %}—{% endif %}</dd>
-    <dt><strong>Total</strong></dt><dd><strong>{% if doc.total is not none %}{{ doc.currency }} {{ "%.2f"|format(doc.total) }}{% else %}—{% endif %}</strong></dd>
-  </dl>
-  <p class="muted" style="margin-top:16px;">Fields shown as — were not found on the document. We leave them blank rather than guessing.</p>
-</div>
-
-{% if doc.line_items %}
-<div class="card">
-  <h3>Line items</h3>
-  <div class="table-scroll">
-    <table>
-      <tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr>
-      {% for i in doc.line_items %}
-      <tr>
-        <td>{{ i.description }}</td>
-        <td class="num">{% if i.quantity is not none %}{{ i.quantity | round(2) }}{% else %}—{% endif %}</td>
-        <td class="num">{% if i.unit_price is not none %}{{ "%.2f"|format(i.unit_price) }}{% else %}—{% endif %}</td>
-        <td class="num">{% if i.amount is not none %}{{ "%.2f"|format(i.amount) }}{% else %}—{% endif %}</td>
-      </tr>
+  {% if clients %}
+  <form method="post" action="/documents/{{ doc.id }}/assign"
+        style="margin-top:16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <label for="client_id" style="margin:0;">Client</label>
+    <select id="client_id" name="client_id"
+            style="padding:8px 11px; border-radius:8px; border:1px solid #d9dad4; background:#fff;">
+      <option value="">— none —</option>
+      {% for c in clients %}
+      <option value="{{ c.id }}" {% if doc.client_id == c.id %}selected{% endif %}>{{ c.name }}</option>
       {% endfor %}
-    </table>
-  </div>
+    </select>
+    <button type="submit" class="secondary" data-busy="Saving..."
+            style="background:#fff; color:var(--ink); border:1px solid #d9dad4; padding:8px 14px;">Save</button>
+  </form>
+  {% endif %}
 </div>
-{% endif %}
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h3 style="margin:0;">Extracted values</h3>
+    <span class="muted">Something wrong? Correct it below and save.</span>
+  </div>
+
+  <form method="post" action="/documents/{{ doc.id }}/edit" style="margin-top:16px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:14px;">
+      <div><label for="vendor_name">Vendor</label>
+        <input id="vendor_name" type="text" name="vendor_name" value="{{ doc.vendor_name }}"></div>
+      <div><label for="invoice_number">Invoice number</label>
+        <input id="invoice_number" type="text" name="invoice_number" value="{{ doc.invoice_number }}"></div>
+      <div><label for="invoice_date">Invoice date</label>
+        <input id="invoice_date" type="text" name="invoice_date" value="{{ doc.invoice_date }}" placeholder="YYYY-MM-DD"></div>
+      <div><label for="due_date">Due date</label>
+        <input id="due_date" type="text" name="due_date" value="{{ doc.due_date }}" placeholder="YYYY-MM-DD"></div>
+      <div><label for="currency">Currency</label>
+        <input id="currency" type="text" name="currency" value="{{ doc.currency }}"></div>
+      <div><label for="subtotal">Subtotal</label>
+        <input id="subtotal" type="text" name="subtotal" value="{{ doc.subtotal if doc.subtotal is not none else '' }}"></div>
+      <div><label for="tax">Tax</label>
+        <input id="tax" type="text" name="tax" value="{{ doc.tax if doc.tax is not none else '' }}"></div>
+      <div><label for="shipping">Shipping</label>
+        <input id="shipping" type="text" name="shipping" value="{{ doc.shipping if doc.shipping is not none else '' }}"></div>
+      <div><label for="total">Total</label>
+        <input id="total" type="text" name="total" value="{{ doc.total if doc.total is not none else '' }}"></div>
+    </div>
+
+    {% if doc.line_items %}
+    <h3 style="margin:26px 0 10px;">Line items</h3>
+    <div class="table-scroll">
+      <table>
+        <tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr>
+        {% for i in doc.line_items %}
+        <tr>
+          <td><input type="text" name="item_{{ i.id }}_description" value="{{ i.description }}"></td>
+          <td><input type="text" name="item_{{ i.id }}_quantity" value="{{ i.quantity if i.quantity is not none else '' }}" style="text-align:right;"></td>
+          <td><input type="text" name="item_{{ i.id }}_unit_price" value="{{ i.unit_price if i.unit_price is not none else '' }}" style="text-align:right;"></td>
+          <td><input type="text" name="item_{{ i.id }}_amount" value="{{ i.amount if i.amount is not none else '' }}" style="text-align:right;"></td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+
+    <div style="margin-top:18px;">
+      <button type="submit" data-busy="Saving...">Save corrections</button>
+    </div>
+    <p class="muted" style="margin-top:12px;">Blank fields were not found on the document - we leave them
+       empty rather than guessing. Fill anything in yourself and it will be used in exports.</p>
+  </form>
+</div>
 
 <div class="card">
   <h3>Raw extracted data</h3>
-  <p class="muted">Exactly what the extractor returned - useful for checking anything above.</p>
+  <p class="muted">Exactly what the extractor returned{% if doc.edited_at %}, before your corrections{% endif %} -
+     useful for checking anything above.</p>
   <div class="table-scroll">
     <pre style="font-size:12.5px; background:#fafaf8; padding:14px; border-radius:8px; border:1px solid var(--line); margin:0;">{{ doc.raw_json }}</pre>
   </div>

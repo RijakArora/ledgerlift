@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Clients - Ledgerlift{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h2>Clients</h2>
+  <p class="muted" style="margin-top:-4px;">Keep each set of books separate, and export per client.
+     Adding clients never changes your price - your quota belongs to the account, not to seats.</p>
+  <form method="post" action="/clients" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
+    <input type="text" name="name" placeholder="e.g. Marigold Design Studio" required
+           style="flex:1; min-width:240px;">
+    <button type="submit" data-busy="Adding...">Add client</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Your clients</h3>
+  <div class="table-scroll">
+    <table>
+      <tr><th>Client</th><th class="num">Documents</th><th>Export</th></tr>
+      {% for c in clients %}
+      <tr>
+        <td><a href="/documents?client_id={{ c.id }}">{{ c.name }}</a></td>
+        <td class="num">{{ counts.get(c.id, 0) }}</td>
+        <td>
+          <a href="/export.csv?shape=summary&client_id={{ c.id }}">Summary</a> &middot;
+          <a href="/export.csv?shape=line_items&client_id={{ c.id }}">Line items</a> &middot;
+          <a href="/export.csv?shape=xero&client_id={{ c.id }}">Xero</a> &middot;
+          <a href="/export.csv?shape=quickbooks&client_id={{ c.id }}">QuickBooks</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="muted">No clients yet. Add one above, or keep using Ledgerlift
+          without clients - documents simply stay unassigned.</td></tr>
+      {% endfor %}
+      {% if unassigned %}
+      <tr>
+        <td class="muted">Unassigned</td>
+        <td class="num">{{ unassigned }}</td>
+        <td class="muted">Assign a client from any document's page</td>
+      </tr>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}

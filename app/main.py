@@ -3,6 +3,8 @@ import os
 from datetime import datetime
 
 from dotenv import load_dotenv
+from typing import List
+
 from fastapi import FastAPI, Depends, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse, FileResponse
 from fastapi.templating import Jinja2Templates
@@ -13,12 +15,16 @@ from starlette.middleware.sessions import SessionMiddleware
 load_dotenv()
 
 from app.database import Base, engine, get_db          # noqa: E402
-from app.models import User, Document, LineItem        # noqa: E402
+from app.migrate import ensure_schema                  # noqa: E402
+from app.models import User, Document, LineItem, Client  # noqa: E402
 from app.auth import hash_password, verify_password, current_user  # noqa: E402
 from app.extract import extract_document, ExtractionError, SUPPORTED_MIME  # noqa: E402
 from app.export import documents_to_csv                # noqa: E402
 
 Base.metadata.create_all(bind=engine)
+# Adds columns introduced after a table already existed - create_all()
+# alone would leave production silently missing them.
+ensure_schema(engine)
 
 app = FastAPI(title="Ledgerlift")
 
@@ -170,16 +176,23 @@ def logout(request: Request):
 
 
 @app.get("/documents", response_class=HTMLResponse)
-def documents(request: Request, db: Session = Depends(get_db)):
+def documents(request: Request, client_id: int | None = None, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not user:
         return RedirectResponse("/login")
-    docs = (
-        db.query(Document).filter(Document.user_id == user.id)
-        .order_by(Document.uploaded_at.desc()).limit(200).all()
-    )
+
+    q = db.query(Document).filter(Document.user_id == user.id)
+    active_client = None
+    if client_id:
+        active_client = db.query(Client).filter(
+            Client.id == client_id, Client.user_id == user.id).first()
+        if active_client:
+            q = q.filter(Document.client_id == active_client.id)
+
+    docs = q.order_by(Document.uploaded_at.desc()).limit(300).all()
+    clients = db.query(Client).filter(Client.user_id == user.id).order_by(Client.name).all()
     return templates.TemplateResponse("documents.html", _ctx(
-        request, user, documents=docs,
+        request, user, documents=docs, clients=clients, active_client=active_client,
         used=_docs_this_month(db, user.id), quota=user.quota))
 
 
@@ -193,7 +206,9 @@ def document_detail(doc_id: int, request: Request, db: Session = Depends(get_db)
     doc = db.query(Document).filter(Document.id == doc_id, Document.user_id == user.id).first()
     if not doc:
         return RedirectResponse("/documents")
-    return templates.TemplateResponse("document_detail.html", _ctx(request, user, doc=doc))
+    clients = db.query(Client).filter(Client.user_id == user.id).order_by(Client.name).all()
+    return templates.TemplateResponse("document_detail.html",
+                                      _ctx(request, user, doc=doc, clients=clients))
 
 
 @app.get("/upload", response_class=HTMLResponse)
@@ -201,49 +216,31 @@ def upload_form(request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not user:
         return RedirectResponse("/login")
+    clients = db.query(Client).filter(Client.user_id == user.id).order_by(Client.name).all()
     return templates.TemplateResponse("upload.html", _ctx(
-        request, user, used=_docs_this_month(db, user.id), quota=user.quota))
+        request, user, clients=clients,
+        used=_docs_this_month(db, user.id), quota=user.quota))
 
 
-@app.post("/upload", response_class=HTMLResponse)
-async def upload(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)):
-    user = current_user(request, db)
-    if not user:
-        return RedirectResponse("/login")
+def _find_duplicate(db: Session, user_id: int, vendor: str, invoice_no: str):
+    """A prior document from the same vendor with the same invoice number.
 
-    def render(**kw):
-        return templates.TemplateResponse("upload.html", _ctx(
-            request, user, used=_docs_this_month(db, user.id), quota=user.quota, **kw))
+    Returned as a warning, never a block. Re-uploading a corrected scan of
+    the same invoice is normal, and refusing the upload outright would be
+    more annoying than a flag the user can simply ignore.
+    """
+    if not vendor or not invoice_no:
+        return None
+    return (db.query(Document)
+            .filter(Document.user_id == user_id,
+                    Document.status == "OK",
+                    Document.vendor_name == vendor,
+                    Document.invoice_number == invoice_no)
+            .order_by(Document.uploaded_at.asc())
+            .first())
 
-    used = _docs_this_month(db, user.id)
-    if used >= user.quota:
-        return render(error=(
-            f"You've used all {user.quota} documents on the {user.plan} plan this month. "
-            "Upgrade to keep processing documents."))
 
-    raw = await file.read()
-    if not raw:
-        return render(error="That file appears to be empty.")
-    if len(raw) > MAX_UPLOAD_BYTES:
-        return render(error=f"File is too large ({len(raw)//1024//1024} MB). Maximum is 15 MB.")
-
-    mime = (file.content_type or "").lower()
-    if mime not in SUPPORTED_MIME and mime != "image/jpg":
-        return render(error=f"Unsupported file type '{mime or 'unknown'}'. Upload a PDF, PNG, JPG, or WEBP.")
-
-    doc = Document(user_id=user.id, filename=file.filename or "upload", mime_type=mime)
-
-    try:
-        data = extract_document(raw, mime)
-    except ExtractionError as e:
-        # Record the failure rather than dropping it - the user should see
-        # the file arrived and why it didn't work.
-        doc.status = "FAILED"
-        doc.error_message = str(e)
-        db.add(doc)
-        db.commit()
-        return render(error=str(e))
-
+def _persist_extraction(doc: Document, data: dict) -> None:
     doc.status = "OK"
     doc.document_type = data.get("document_type") or ""
     doc.vendor_name = data.get("vendor_name") or ""
@@ -257,37 +254,241 @@ async def upload(request: Request, file: UploadFile = File(...), db: Session = D
     doc.shipping = data.get("shipping")
     doc.total = data.get("total")
     doc.raw_json = json.dumps(data, indent=2)
-    db.add(doc)
-    db.commit()
-    db.refresh(doc)
-
-    for item in (data.get("line_items") or []):
-        db.add(LineItem(
-            document_id=doc.id,
-            description=item.get("description") or "",
-            quantity=item.get("quantity"),
-            unit_price=item.get("unit_price"),
-            amount=item.get("amount"),
-        ))
-    db.commit()
-
-    return RedirectResponse(f"/documents/{doc.id}", status_code=303)
 
 
-@app.get("/export.csv")
-def export_csv(request: Request, shape: str = "summary", db: Session = Depends(get_db)):
+@app.post("/upload", response_class=HTMLResponse)
+async def upload(request: Request, files: List[UploadFile] = File(...),
+                 db: Session = Depends(get_db)):
+    """Handles one or many files in a single submission.
+
+    Each file is processed independently: one bad file in a batch of
+    thirty must not discard the twenty-nine that worked, so failures are
+    recorded per-document and reported in a summary rather than aborting.
+    """
     user = current_user(request, db)
     if not user:
         return RedirectResponse("/login")
-    docs = (
-        db.query(Document)
-        .filter(Document.user_id == user.id, Document.status == "OK")
-        .order_by(Document.uploaded_at.desc()).all()
-    )
-    csv_text = documents_to_csv(docs, shape="line_items" if shape == "line_items" else "summary")
-    filename = f"export-{shape}-{datetime.utcnow().strftime('%Y%m%d')}.csv"
+
+    form = await request.form()
+    raw_client_id = form.get("client_id") or ""
+    client = None
+    if raw_client_id:
+        client = db.query(Client).filter(
+            Client.id == int(raw_client_id), Client.user_id == user.id).first()
+
+    def render(**kw):
+        return templates.TemplateResponse("upload.html", _ctx(
+            request, user,
+            clients=db.query(Client).filter(Client.user_id == user.id).order_by(Client.name).all(),
+            used=_docs_this_month(db, user.id), quota=user.quota, **kw))
+
+    files = [f for f in files if f and f.filename]
+    if not files:
+        return render(error="No file selected.")
+
+    used = _docs_this_month(db, user.id)
+    remaining = user.quota - used
+    if remaining <= 0:
+        return render(error=("You have used all " + str(user.quota) + " documents on the "
+                             + user.plan + " plan this month. Upgrade to keep going."))
+
+    truncated = False
+    if len(files) > remaining:
+        files = files[:remaining]
+        truncated = True
+
+    ok = 0
+    dupes = 0
+    failed = []
+    first_id = None
+
+    for f in files:
+        raw = await f.read()
+        name = f.filename or "upload"
+        mime = (f.content_type or "").lower()
+
+        if not raw:
+            failed.append(name + ": file is empty")
+            continue
+        if len(raw) > MAX_UPLOAD_BYTES:
+            failed.append(name + ": larger than 15 MB")
+            continue
+        if mime not in SUPPORTED_MIME and mime != "image/jpg":
+            failed.append(name + ": unsupported type " + (mime or "unknown"))
+            continue
+
+        doc = Document(user_id=user.id, filename=name, mime_type=mime,
+                       client_id=client.id if client else None)
+        try:
+            data = extract_document(raw, mime)
+        except ExtractionError as e:
+            doc.status = "FAILED"
+            doc.error_message = str(e)
+            db.add(doc)
+            db.commit()
+            failed.append(name + ": " + str(e))
+            continue
+
+        _persist_extraction(doc, data)
+        prior = _find_duplicate(db, user.id, doc.vendor_name, doc.invoice_number)
+        if prior:
+            doc.duplicate_of_id = prior.id
+            dupes += 1
+        db.add(doc)
+        db.commit()
+        db.refresh(doc)
+
+        for item in (data.get("line_items") or []):
+            db.add(LineItem(document_id=doc.id,
+                            description=item.get("description") or "",
+                            quantity=item.get("quantity"),
+                            unit_price=item.get("unit_price"),
+                            amount=item.get("amount")))
+        db.commit()
+        ok += 1
+        if first_id is None:
+            first_id = doc.id
+
+    # A clean single upload goes straight to the document, as before.
+    if ok == 1 and not failed and not dupes:
+        return RedirectResponse("/documents/" + str(first_id), status_code=303)
+
+    parts = []
+    if ok:
+        parts.append(str(ok) + " document" + ("s" if ok != 1 else "") + " processed")
+    if dupes:
+        parts.append(str(dupes) + " flagged as a possible duplicate")
+    if truncated:
+        parts.append("some files skipped - monthly quota reached")
+    return render(ok=", ".join(parts) if parts else None, failures=failed)
+
+
+@app.post("/documents/{doc_id}/edit")
+async def edit_document(doc_id: int, request: Request, db: Session = Depends(get_db)):
+    """Lets a human correct extracted values.
+
+    Without this, telling users to "review before posting to your books"
+    is hollow: finding an error would mean falling back to manual entry,
+    which defeats the point of the tool. Corrections stamp edited_at so an
+    edited record is never mistaken for raw model output.
+    """
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse("/login")
+    doc = db.query(Document).filter(
+        Document.id == doc_id, Document.user_id == user.id).first()
+    if not doc:
+        return RedirectResponse("/documents")
+
+    form = await request.form()
+
+    def num(key, current):
+        v = (form.get(key) or "").strip().replace(",", "")
+        if v == "":
+            return None
+        try:
+            return float(v)
+        except ValueError:
+            return current  # keep the old value rather than destroying it
+
+    doc.vendor_name = (form.get("vendor_name") or "").strip()
+    doc.invoice_number = (form.get("invoice_number") or "").strip()
+    doc.invoice_date = (form.get("invoice_date") or "").strip()
+    doc.due_date = (form.get("due_date") or "").strip()
+    doc.currency = (form.get("currency") or "").strip()
+    doc.subtotal = num("subtotal", doc.subtotal)
+    doc.tax = num("tax", doc.tax)
+    doc.shipping = num("shipping", doc.shipping)
+    doc.total = num("total", doc.total)
+
+    for item in doc.line_items:
+        desc = form.get("item_" + str(item.id) + "_description")
+        if desc is None:
+            continue
+        item.description = desc.strip()
+        item.quantity = num("item_" + str(item.id) + "_quantity", item.quantity)
+        item.unit_price = num("item_" + str(item.id) + "_unit_price", item.unit_price)
+        item.amount = num("item_" + str(item.id) + "_amount", item.amount)
+
+    doc.edited_at = datetime.utcnow()
+    db.commit()
+    return RedirectResponse("/documents/" + str(doc.id), status_code=303)
+
+
+@app.get("/clients", response_class=HTMLResponse)
+def clients_page(request: Request, db: Session = Depends(get_db)):
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse("/login")
+    clients = db.query(Client).filter(Client.user_id == user.id).order_by(Client.name).all()
+    counts = {}
+    for c in clients:
+        counts[c.id] = db.query(func.count(Document.id)).filter(
+            Document.client_id == c.id).scalar() or 0
+    unassigned = db.query(func.count(Document.id)).filter(
+        Document.user_id == user.id, Document.client_id.is_(None)).scalar() or 0
+    return templates.TemplateResponse("clients.html", _ctx(
+        request, user, clients=clients, counts=counts, unassigned=unassigned))
+
+
+@app.post("/clients")
+async def create_client(request: Request, db: Session = Depends(get_db)):
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse("/login")
+    form = await request.form()
+    name = (form.get("name") or "").strip()
+    if name:
+        exists = db.query(Client).filter(
+            Client.user_id == user.id, Client.name == name).first()
+        if not exists:
+            db.add(Client(user_id=user.id, name=name))
+            db.commit()
+    return RedirectResponse("/clients", status_code=303)
+
+
+@app.post("/documents/{doc_id}/assign")
+async def assign_client(doc_id: int, request: Request, db: Session = Depends(get_db)):
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse("/login")
+    doc = db.query(Document).filter(
+        Document.id == doc_id, Document.user_id == user.id).first()
+    if not doc:
+        return RedirectResponse("/documents")
+    form = await request.form()
+    cid = form.get("client_id") or ""
+    if cid:
+        c = db.query(Client).filter(Client.id == int(cid), Client.user_id == user.id).first()
+        doc.client_id = c.id if c else None
+    else:
+        doc.client_id = None
+    db.commit()
+    return RedirectResponse("/documents/" + str(doc.id), status_code=303)
+
+
+@app.get("/export.csv")
+def export_csv(request: Request, shape: str = "summary", client_id: int | None = None,
+               db: Session = Depends(get_db)):
+    user = current_user(request, db)
+    if not user:
+        return RedirectResponse("/login")
+
+    q = db.query(Document).filter(Document.user_id == user.id, Document.status == "OK")
+    label = "all"
+    if client_id:
+        c = db.query(Client).filter(Client.id == client_id, Client.user_id == user.id).first()
+        if c:
+            q = q.filter(Document.client_id == c.id)
+            label = "".join(ch if ch.isalnum() else "-" for ch in c.name).strip("-").lower() or "client"
+
+    docs = q.order_by(Document.uploaded_at.desc()).all()
+    if shape not in ("summary", "line_items", "xero", "quickbooks"):
+        shape = "summary"
+    csv_text = documents_to_csv(docs, shape=shape)
+    fn = "ledgerlift-" + label + "-" + shape + "-" + datetime.utcnow().strftime("%Y%m%d") + ".csv"
     return PlainTextResponse(csv_text, media_type="text/csv", headers={
-        "Content-Disposition": f'attachment; filename="{filename}"'})
+        "Content-Disposition": 'attachment; filename="' + fn + '"'})
 
 
 @app.get("/sample-invoice.png")

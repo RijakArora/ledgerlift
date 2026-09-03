@@ -2,12 +2,41 @@
 {% block title %}Upload - Ledgerlift{% endblock %}
 {% block content %}
 <div class="card">
-  <h2>Upload an invoice or receipt</h2>
+  <h2>Upload invoices or receipts</h2>
   {% if error %}<div class="notice error">{{ error }}</div>{% endif %}
+  {% if ok %}<div class="notice ok">{{ ok }}. <a href="/documents">View documents &rarr;</a></div>{% endif %}
+  {% if failures %}
+  <div class="notice error">
+    <strong>{{ failures|length }} file{{ 's' if failures|length != 1 else '' }} could not be processed:</strong>
+    <ul style="margin:8px 0 0; padding-left:20px;">
+      {% for f in failures %}<li>{{ f }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
   <form method="post" action="/upload" enctype="multipart/form-data">
-    <input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*" required>
-    <p class="muted" style="margin:10px 0 16px;">PDF, PNG, JPG, or WEBP - up to 15 MB. A phone photo of a paper receipt works.</p>
-    <button type="submit" data-busy="Reading document... (takes a few seconds)">Extract data</button>
+    <label for="files">Files</label>
+    <input id="files" type="file" name="files" multiple
+           accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*" required>
+    <p class="muted" style="margin:8px 0 16px;">
+      Select as many as you like - a whole month of receipts in one go is fine.
+      PDF, PNG, JPG or WEBP, up to 15 MB each. A phone photo works.
+    </p>
+
+    {% if clients %}
+    <label for="client_id">Assign to client <span class="muted">(optional)</span></label>
+    <select id="client_id" name="client_id"
+            style="padding:11px 13px; font-size:15px; border-radius:9px; border:1px solid #d9dad4; width:100%; max-width:380px; background:#fff;">
+      <option value="">— no client —</option>
+      {% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+    </select>
+    <p class="muted" style="margin:8px 0 16px;">Everything in this batch goes to the client you pick.</p>
+    {% else %}
+    <p class="muted" style="margin-bottom:16px;">Keeping books for several clients?
+       <a href="/clients">Set up clients</a> to keep them separate and export per client.</p>
+    {% endif %}
+
+    <button type="submit" data-busy="Reading documents... (a few seconds each)">Extract data</button>
   </form>
 </div>
 
@@ -16,7 +45,8 @@
   <p style="margin:6px 0 0;"><strong>{{ used }}</strong> of {{ quota }} documents used
      <span class="badge badge-plan">{{ user.plan }}</span></p>
   <div class="quota-bar"><span style="width: {{ (100 if used >= quota else (used / quota * 100)) | round(1) }}%;"></span></div>
-  <p class="muted" style="margin-top:10px;">Your quota is per account, not per person. Adding a client or your accountant never increases the bill.</p>
+  <p class="muted" style="margin-top:10px;">Your quota is per account, not per person and not per client.
+     Adding a colleague, a client or your accountant never increases the bill.</p>
 </div>
 
 <div class="card">
